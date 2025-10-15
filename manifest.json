@@ -1,6 +1,6 @@
 {
-  "name": "Full-Screen App",
-  "short_name": "FullScreen",
+  "name": "Demo",
+  "short_name": "Demo",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#f0f0f0",
