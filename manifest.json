@@ -2,7 +2,7 @@
   "name": "Full-Screen App",
   "short_name": "FullScreen",
   "start_url": ".",
-  "display": "fullscreen",
+  "display": "standalone",
   "background_color": "#f0f0f0",
   "theme_color": "#000000",
   "icons": [
