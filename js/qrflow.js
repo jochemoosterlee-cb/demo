@@ -60,12 +60,85 @@ export class QrFlow {
   }
 
   // --- QR rendering ---
-  renderQr({ container, text, size = 192, colorDark = '#000000', colorLight = '#FFFFFF' }) {
+  // Supports size/width/height, colors, error correction level, quiet zone padding, and optional center logo overlay.
+  // correctLevel: one of 'L','M','Q','H' (defaults to 'M').
+  renderQr({
+    container,
+    text,
+    size = 192,
+    width,
+    height,
+    colorDark = '#000000',
+    colorLight = '#FFFFFF',
+    correctLevel = 'M',
+    quietZone = 0,
+    logoSrc,
+    logoSizeRatio = 0.2,
+  }) {
     const el = typeof container === 'string' ? document.querySelector(container) : container;
     if (!el) throw new Error('QR container not found');
     if (typeof QRCode === 'undefined') throw new Error('QRCode library not loaded');
     el.innerHTML = '';
-    return new QRCode(el, { text, width: size, height: size, colorDark, colorLight });
+
+    const w = Number.isFinite(width) ? Number(width) : size;
+    const h = Number.isFinite(height) ? Number(height) : size;
+
+    // Wrapper to support quiet zone and overlay logo
+    const wrapper = document.createElement('div');
+    wrapper.style.display = 'inline-block';
+    wrapper.style.position = 'relative';
+    if (quietZone > 0) {
+      wrapper.style.padding = `${quietZone}px`;
+      wrapper.style.background = colorLight;
+      wrapper.style.borderRadius = '8px';
+    }
+    el.appendChild(wrapper);
+
+    const target = document.createElement('div');
+    target.style.width = `${w}px`;
+    target.style.height = `${h}px`;
+    wrapper.appendChild(target);
+
+    const levelMap = (typeof QRCode !== 'undefined' && QRCode.CorrectLevel)
+      ? {
+          L: QRCode.CorrectLevel.L,
+          M: QRCode.CorrectLevel.M,
+          Q: QRCode.CorrectLevel.Q,
+          H: QRCode.CorrectLevel.H,
+        }
+      : null;
+
+    const opts = {
+      text,
+      width: w,
+      height: h,
+      colorDark,
+      colorLight,
+    };
+    if (levelMap && levelMap[String(correctLevel).toUpperCase()]) {
+      opts.correctLevel = levelMap[String(correctLevel).toUpperCase()];
+    }
+
+    const instance = new QRCode(target, opts);
+
+    if (logoSrc) {
+      const img = document.createElement('img');
+      img.src = logoSrc;
+      img.alt = '';
+      img.style.position = 'absolute';
+      img.style.left = '50%';
+      img.style.top = '50%';
+      img.style.transform = 'translate(-50%, -50%)';
+      const logoSize = Math.round(Math.min(w, h) * (logoSizeRatio > 0 && logoSizeRatio < 1 ? logoSizeRatio : 0.2));
+      img.style.width = `${logoSize}px`;
+      img.style.height = `${logoSize}px`;
+      img.style.borderRadius = '8px';
+      img.style.background = colorLight;
+      img.style.padding = '4px';
+      wrapper.appendChild(img);
+    }
+
+    return instance;
   }
 
   // --- Scanning helper ---

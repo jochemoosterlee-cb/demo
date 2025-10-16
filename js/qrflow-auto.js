@@ -34,6 +34,10 @@ async function initPresenter(el) {
   const size = parseInt(el.dataset.size || '192', 10);
   const colorDark = el.dataset.colorDark || '#000000';
   const colorLight = el.dataset.colorLight || '#FFFFFF';
+  const correctLevel = (el.dataset.correctLevel || 'M').toUpperCase();
+  const quietZone = parseInt(el.dataset.quietZone || '', 10);
+  const logoSrc = el.dataset.logoSrc || '';
+  const logoSizeRatio = parseFloat(el.dataset.logoSizeRatio || '0.5');
   const waitFor = (el.dataset.wait || 'completed').toLowerCase(); // 'scanned' | 'completed'
   const nextUrl = el.dataset.nextUrl || '';
   let id = el.dataset.sessionId || '';
@@ -48,7 +52,7 @@ async function initPresenter(el) {
   try { sessionStorage.setItem('qrId', id); } catch {}
 
   dispatch(el, 'qrflow:session', { id });
-  f.renderQr({ container: el, text: id, size, colorDark, colorLight });
+  f.renderQr({ container: el, text: id, size, colorDark, colorLight, correctLevel, quietZone, logoSrc, logoSizeRatio });
 
   const unsubScanned = f.onScanned(id, () => {
     dispatch(el, 'qrflow:scanned', { id });
