@@ -103,8 +103,8 @@ async function startScanner(el) {
                 : 'w-3 h-3 rounded-full border border-textDark/40 inline-block';
             });
           };
-          const clearErr = () => err && err.classList.add('hidden');
-          const showErr = (m) => { if (err) { err.textContent = m; err.classList.remove('hidden'); } };
+          const clearErr = () => { if (err) { err.textContent = ''; err.classList.add('invisible'); err.classList.remove('hidden'); } };
+          const showErr = (m) => { if (err) { err.textContent = m; err.classList.remove('invisible'); } };
           const trySubmit = async () => {
             if (value.length !== PIN.length) return;
             if (value !== PIN) { value=''; renderDots(); showErr('Onjuiste PIN. Probeer opnieuw.'); return; }

@@ -1,6 +1,6 @@
 {
   "id": "./",
-  "name": "Demo Mobile",
+  "name": "Demo",
   "short_name": "Demo",
   "start_url": "./index.html",
   "scope": "./",
