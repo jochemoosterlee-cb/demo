@@ -4,14 +4,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
   <link href="https://fonts.googleapis.com/css2?family=Headland+One&family=Inter:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet" />
-
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/dist/html5-qrcode.min.js"></script>
+
   <script>
     tailwind.config = {
       theme: {
@@ -36,31 +36,46 @@
 </head>
 
 <body class="overflow-x-hidden bg-brandBg text-textDark flex flex-col items-center justify-start py-8 px-4">
-
-  <h1 class="font-headland text-[1.4rem] font-medium mb-4">Ondertekenen</h1>
-  <div class="relative w-[400vw] h-10 bg-[url('line.svg')] bg-no-repeat bg-center bg-contain"></div>
-
-  <div class="bg-cardBg rounded-2xl p-8 flex flex-col items-center gap-8 w-[70%] mt-10">
-    <div class="w-16 h-16 bg-[url('eidas.svg')] bg-no-repeat bg-center bg-contain"></div>
-
-    <div class="w-[min(150px,calc(100%*150/160))] aspect-square">
-      <img src="checkmark.svg" alt="Checkmark" class="w-full h-full object-contain" />
-    </div>
-
-    <div class="font-inter text-base text-center text-textDark">Ondertekening voltooid</div>
-  </div>
-
-  <button class="bg-brandBlue hover:bg-brandBlueHover text-white rounded-md px-6 py-3 text-base font-inter mt-10 inline-flex items-center gap-2 transition-colors duration-200">
-    Verder
+  <h1 class="font-headland text-[1.4rem] font-medium mb-4">Scan de QR-code</h1>
+  <button id="scanButton" class="bg-brandBlue hover:bg-brandBlueHover text-white rounded-md px-6 py-3 text-base font-inter mt-10 inline-flex items-center gap-2 transition-colors duration-200">
+    Scan QR
     <span><strong>&gt;</strong></span>
   </button>
-
+  <div id="reader" class="mt-10 hidden"></div>
 </body>
 
-<script>
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+  import { getDatabase, ref, set } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
+
+  const firebaseConfig = {
+    databaseURL: "https://demoapp-6cc2a-default-rtdb.europe-west1.firebasedatabase.app/"
+  };
+  const app = initializeApp(firebaseConfig);
+  const database = getDatabase(app);
+
+  const scanButton = document.getElementById('scanButton');
+  const reader = document.getElementById('reader');
+  let html5QrcodeScanner;
+
+  scanButton.addEventListener('click', () => {
+    scanButton.classList.add('hidden');
+    reader.classList.remove('hidden');
+    html5QrcodeScanner = new Html5QrcodeScanner('reader', {
+      fps: 10,
+      qrbox: 250,
+    });
+    html5QrcodeScanner.render((qrCodeMessage) => {
+      html5QrcodeScanner.clear();
+      reader.classList.add('hidden');
+      set(ref(database, 'qrScanned'), qrCodeMessage);
+    }, (error) => {
+      console.log(error);
+    });
+  });
+
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js');
   }
 </script>
-
 </html>

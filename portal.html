@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en" class="overflow-x-hidden">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <link href="https://fonts.googleapis.com/css2?family=Headland+One&family=Inter:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script> <!-- Load as traditional script -->
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            inter: ['Inter', 'sans-serif'],
+            headland: ['"Headland One"', 'serif'],
+          },
+          colors: {
+            brandBg: '#FAF5EB',
+            textDark: '#222',
+            cardBg: '#F7EFDD',
+            brandBlue: '#163563',
+            brandBlueHover: '#003d8c',
+          },
+        },
+      },
+    };
+  </script>
+
+  <title>Portal</title>
+</head>
+
+<body class="overflow-x-hidden bg-brandBg text-textDark flex flex-col items-center justify-center min-h-screen px-8">
+  <div id="qrContainer" class="max-w-4xl w-full bg-cardBg rounded-2xl p-12 flex flex-col items-center gap-12">
+    <h1 class="font-headland text-3xl font-medium mb-6">Scan de QR-code</h1>
+    <div id="qrcode" class="w-64 h-64"></div>
+  </div>
+  <div id="successContainer" class="max-w-4xl w-full bg-cardBg rounded-2xl p-12 flex flex-col items-center gap-8 hidden">
+    <h1 class="font-headland text-3xl font-medium mb-6">Ondertekenen</h1>
+    <div class="relative w-[400vw] h-10 bg-[url('line.svg')] bg-no-repeat bg-center bg-contain"></div>
+    <div class="flex flex-col items-center gap-8 w-[70%] mt-10">
+      <div class="w-16 h-16 bg-[url('eidas.svg')] bg-no-repeat bg-center bg-contain"></div>
+      <div class="w-[min(150px,calc(100%*150/160))] aspect-square">
+        <img src="checkmark.svg" alt="Checkmark" class="w-full h-full object-contain" />
+      </div>
+      <div class="font-inter text-base text-center text-textDark">Ondertekening voltooid</div>
+    </div>
+    <button class="bg-brandBlue hover:bg-brandBlueHover text-white rounded-md px-6 py-3 text-base font-inter mt-10 inline-flex items-center gap-2 transition-colors duration-200">
+      Verder
+      <span><strong>&gt;</strong></span>
+    </button>
+  </div>
+</body>
+
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+  import { getDatabase, ref, onValue } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
+
+  const firebaseConfig = {
+    databaseURL: "https://demoapp-6cc2a-default-rtdb.europe-west1.firebasedatabase.app/"
+  };
+  const app = initializeApp(firebaseConfig);
+  const database = getDatabase(app);
+
+  // Generate QR code after ensuring QRCode is defined
+  document.addEventListener('DOMContentLoaded', () => {
+    const qrId = Date.now().toString(); // Unique ID based on timestamp
+    new QRCode(document.getElementById('qrcode'), {
+      text: qrId,
+      width: 256,
+      height: 256,
+      colorDark: '#000000',
+      colorLight: '#ffffff',
+    });
+
+    // Listen for scan result
+    onValue(ref(database, 'qrScanned'), (snapshot) => {
+      const qrScanned = snapshot.val();
+      const qrContainer = document.getElementById('qrContainer');
+      const successContainer = document.getElementById('successContainer');
+      if (qrScanned === qrId) {
+        qrContainer.classList.add('hidden');
+        successContainer.classList.remove('hidden');
+      }
+    });
+  });
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js');
+  }
+</script>
+</html>
