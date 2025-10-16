@@ -10,7 +10,7 @@
   <link rel="icon" type="image/x-icon" href="favicon.ico">
   <link href="https://fonts.googleapis.com/css2?family=Headland+One&family=Inter:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet" />
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script> <!-- Switched to a reliable version -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
   <script>
     tailwind.config = {
@@ -36,24 +36,36 @@
 </head>
 
 <body class="overflow-x-hidden bg-brandBg text-textDark flex flex-col items-center justify-center min-h-screen px-8">
-  <div id="qrContainer" class="max-w-4xl w-full bg-cardBg rounded-2xl p-12 flex flex-col items-center gap-12">
+  <div id="welcomeContainer" class="max-w-4xl w-full bg-cardBg rounded-2xl p-12 flex flex-col items-center gap-6">
+    <h1 class="font-headland text-3xl font-medium mb-2">Welkom</h1>
+    <div class="font-inter text-base text-center text-textDark max-w-prose">Gebruik je telefoon om te ondertekenen. Klik hieronder om de QR-code te tonen.</div>
+    <button id="showQrButton" class="bg-brandBlue hover:bg-brandBlueHover text-white rounded-md px-6 py-3 text-base font-inter mt-4 inline-flex items-center gap-2 transition-colors duration-200">
+      QR tonen
+      <span><strong>&gt;</strong></span>
+    </button>
+  </div>
+
+  <div id="qrContainer" class="max-w-4xl w-full bg-cardBg rounded-2xl p-12 flex flex-col items-center gap-12 hidden">
     <h1 class="font-headland text-3xl font-medium mb-6">Scan de QR-code</h1>
     <div id="qrcode" class="w-64 h-64"></div>
   </div>
   <div id="successContainer" class="max-w-4xl w-full bg-cardBg rounded-2xl p-12 flex flex-col items-center gap-8 hidden">
-    <h1 class="font-headland text-3xl font-medium mb-6">Ondertekenen</h1>
-    <div class="relative w-[400vw] h-10 bg-[url('line.svg')] bg-no-repeat bg-center bg-contain"></div>
-    <div class="flex flex-col items-center gap-8 w-[70%] mt-10">
-      <div class="w-16 h-16 bg-[url('eidas.svg')] bg-no-repeat bg-center bg-contain"></div>
-      <div class="w-[min(150px,calc(100%*150/160))] aspect-square">
-        <img src="checkmark.svg" alt="Checkmark" class="w-full h-full object-contain" />
+    <h1 class="font-headland text-3xl font-medium mb-2">Scan gelukt</h1>
+    <div class="flex flex-col items-center gap-6 w-[70%] mt-6">
+      <div class="font-inter text-base text-center text-textDark">Ga verder op je telefoon om te ondertekenen.</div>
+      <div class="font-inter text-sm text-center text-textDark/70">Deze pagina werkt automatisch bij zodra het proces is voltooid.</div>
+      <div id="waitingIndicator" class="flex items-center gap-2 text-textDark/80 mt-2">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="animate-spin">
+          <circle cx="12" cy="12" r="10" stroke="#163563" stroke-opacity="0.2" stroke-width="4"/>
+          <path d="M22 12a10 10 0 0 0-10-10" stroke="#163563" stroke-width="4" stroke-linecap="round"/>
+        </svg>
+        <span class="font-inter">Wachten op afronding...</span>
       </div>
-      <div class="font-inter text-base text-center text-textDark">Ondertekening voltooid</div>
+      <button id="portalContinueButton" class="bg-brandBlue hover:bg-brandBlueHover text-white rounded-md px-6 py-3 text-base font-inter mt-2 inline-flex items-center gap-2 transition-colors duration-200 hidden">
+        Verder
+        <span><strong>&gt;</strong></span>
+      </button>
     </div>
-    <button class="bg-brandBlue hover:bg-brandBlueHover text-white rounded-md px-6 py-3 text-base font-inter mt-10 inline-flex items-center gap-2 transition-colors duration-200">
-      Verder
-      <span><strong>&gt;</strong></span>
-    </button>
   </div>
 </body>
 
@@ -67,30 +79,45 @@
   const app = initializeApp(firebaseConfig);
   const database = getDatabase(app);
 
-  // Generate QR code after ensuring QRCode is defined
   document.addEventListener('DOMContentLoaded', () => {
-    if (typeof QRCode === 'undefined') {
-      console.error('QRCode library not loaded');
-      return;
-    }
-    const qrId = Date.now().toString(); // Unique ID based on timestamp
-    new QRCode(document.getElementById('qrcode'), {
-      text: qrId,
-      width: 256,
-      height: 256,
-      colorDark: '#000000',
-      colorLight: '#ffffff',
-    });
+    const welcomeContainer = document.getElementById('welcomeContainer');
+    const qrContainer = document.getElementById('qrContainer');
+    const successContainer = document.getElementById('successContainer');
+    const showQrButton = document.getElementById('showQrButton');
 
-    // Listen for scan result
-    onValue(ref(database, 'qrScanned'), (snapshot) => {
-      const qrScanned = snapshot.val();
-      const qrContainer = document.getElementById('qrContainer');
-      const successContainer = document.getElementById('successContainer');
-      if (qrScanned === qrId) {
-        qrContainer.classList.add('hidden');
-        successContainer.classList.remove('hidden');
+    let initialized = false;
+    showQrButton.addEventListener('click', () => {
+      if (initialized) return;
+      initialized = true;
+
+      if (typeof QRCode === 'undefined') {
+        console.error('QRCode library not loaded');
+        return;
       }
+
+      welcomeContainer.classList.add('hidden');
+      qrContainer.classList.remove('hidden');
+
+      const qrEl = document.getElementById('qrcode');
+      qrEl.innerHTML = '';
+      const qrId = Date.now().toString();
+      new QRCode(qrEl, { text: qrId, width: 256, height: 256, colorDark: '#000000', colorLight: '#ffffff' });
+
+      const unsubscribe = onValue(ref(database, 'qrScanned'), (snapshot) => {
+        const qrScanned = snapshot.val();
+        if (qrScanned === qrId) {
+          qrContainer.classList.add('hidden');
+          successContainer.classList.remove('hidden');
+          if (typeof unsubscribe === 'function') unsubscribe();
+          setTimeout(() => {
+            const waitEl = document.getElementById('waitingIndicator');
+            const contBtn = document.getElementById('portalContinueButton');
+            waitEl?.classList.add('hidden');
+            contBtn?.classList.remove('hidden');
+            contBtn?.addEventListener('click', () => window.location.reload());
+          }, 3000);
+        }
+      });
     });
   });
 

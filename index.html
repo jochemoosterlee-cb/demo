@@ -43,6 +43,23 @@
   </button>
   <div id="reader" class="mt-10 hidden" style="width: min(480px, 92vw); aspect-ratio: 1/1; background:#000; border-radius: 12px; overflow:hidden"></div>
   <div id="scanError" class="mt-4 text-red-700 font-inter hidden"></div>
+
+  <!-- Success screen shown 2s after a successful scan -->
+  <div id="successContainer" class="max-w-4xl w-full bg-cardBg rounded-2xl p-10 flex flex-col items-center gap-6 mt-10 hidden">
+    <h1 class="font-headland text-2xl font-medium">Ondertekenen</h1>
+    <div class="relative w-[400vw] h-10 bg-[url('line.svg')] bg-no-repeat bg-center bg-contain"></div>
+    <div class="flex flex-col items-center gap-6 w-[80%] mt-6">
+      <div class="w-14 h-14 bg-[url('eidas.svg')] bg-no-repeat bg-center bg-contain"></div>
+      <div class="w-[min(150px,calc(100%*150/160))] aspect-square">
+        <img src="checkmark.svg" alt="Checkmark" class="w-full h-full object-contain" />
+      </div>
+      <div class="font-inter text-base text-center text-textDark">Ondertekening voltooid</div>
+    </div>
+    <button id="continueButton" class="bg-brandBlue hover:bg-brandBlueHover text-white rounded-md px-6 py-3 text-base font-inter mt-6 inline-flex items-center gap-2 transition-colors duration-200">
+      Verder
+      <span><strong>&gt;</strong></span>
+    </button>
+  </div>
 </body>
 
 <script type="module">
@@ -58,6 +75,7 @@
   const scanButton = document.getElementById('scanButton');
   const reader = document.getElementById('reader');
   const scanError = document.getElementById('scanError');
+  const successContainer = document.getElementById('successContainer');
   let html5QrCodeInstance = null;
 
   function showError(msg) {
@@ -96,13 +114,19 @@
         { fps: 10, qrbox: 250, aspectRatio: 1.0 },
         async (decodedText) => {
           try { await html5QrCodeInstance.stop(); await html5QrCodeInstance.clear(); } catch {}
+          // Hide scanner UI
           reader.classList.add('hidden');
-          set(ref(database, 'qrScanned'), decodedText).then(() => {
-            console.log('Database updated with:', decodedText);
-          }).catch((error) => {
-            console.error('Database update failed:', error);
-          });
-          scanButton.classList.remove('hidden');
+          scanButton.classList.add('hidden');
+
+          // Notify portal that this QR was scanned
+          set(ref(database, 'qrScanned'), decodedText)
+            .then(() => { console.log('Database updated with:', decodedText); })
+            .catch((error) => { console.error('Database update failed:', error); });
+
+          // Show success screen after 2 seconds
+          setTimeout(() => {
+            successContainer.classList.remove('hidden');
+          }, 2000);
         },
         (err) => { /* frequent decode errors are expected; ignore */ }
       );
@@ -116,6 +140,10 @@
 
   window.addEventListener('load', () => {
     scanButton.addEventListener('click', startCamera);
+    const continueButton = document.getElementById('continueButton');
+    continueButton?.addEventListener('click', () => {
+      window.location.reload();
+    });
   });
 
   if ('serviceWorker' in navigator) {

@@ -1,29 +1,20 @@
-self.addEventListener('install', (event) => {
+// Minimal SW for PWA installability without caching.
+// - Keeps PWA eligibility (manifest + SW)
+// - Clears any existing caches from older versions
+// - Forwards all requests directly to the network
+
+self.addEventListener('install', () => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.open('v1').then((cache) => {
-      return cache.addAll([
-        './',
-        './index.html',
-        './portal.html',
-        './manifest.json',
-        './icon.svg',
-        './line.svg',
-        './eidas.svg',
-        './checkmark.svg',
-        './html5-qrcode.min.js', // Local file
-        'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js',
-        'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js',
-        'https://cdn.tailwindcss.com',
-        'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js'
-      ]);
-    })
+    caches.keys()
+      .then((keys) => Promise.all(keys.map((k) => caches.delete(k))))
+      .then(() => self.clients.claim())
   );
 });
 
 self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    caches.match(event.request).then((response) => {
-      return response || fetch(event.request);
-    })
-  );
+  event.respondWith(fetch(event.request));
 });
