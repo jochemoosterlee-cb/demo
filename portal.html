@@ -47,7 +47,7 @@
 
   <div id="qrContainer" class="max-w-4xl w-full bg-cardBg rounded-2xl p-12 flex flex-col items-center gap-12 hidden">
     <h1 class="font-headland text-3xl font-medium mb-6">Scan de QR-code</h1>
-    <div id="qrcode" class="w-64 h-64"></div>
+    <div id="qrcode" class="p-4 flex justify-center items-center rounded-lg bg-brandBlue"></div>
   </div>
   <div id="successContainer" class="max-w-4xl w-full bg-cardBg rounded-2xl p-12 flex flex-col items-center gap-8 hidden">
     <h1 class="font-headland text-3xl font-medium mb-2">Scan gelukt</h1>
@@ -101,7 +101,7 @@
       const qrEl = document.getElementById('qrcode');
       qrEl.innerHTML = '';
       const qrId = Date.now().toString();
-      new QRCode(qrEl, { text: qrId, width: 256, height: 256, colorDark: '#000000', colorLight: '#ffffff' });
+      new QRCode(qrEl, { text: qrId, width: 128, height: 128, colorDark: '#ffffff', colorLight: '#163563' });
 
       const unsubscribe = onValue(ref(database, 'qrScanned'), (snapshot) => {
         const qrScanned = snapshot.val();
