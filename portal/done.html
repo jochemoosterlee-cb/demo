@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="nl" class="overflow-x-hidden">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  
+  <link rel="icon" type="image/x-icon" href="../favicon.ico">
+  <link href="https://fonts.googleapis.com/css2?family=Headland+One&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            inter: ['Inter', 'sans-serif'],
+            headland: ['\"Headland One\"', 'serif'],
+          },
+          colors: {
+            brandBg: '#FAF5EB',
+            textDark: '#222',
+            cardBg: '#F7EFDD',
+            brandBlue: '#163563',
+            brandBlueHover: '#003d8c',
+          },
+        },
+      },
+    };
+  </script>
+  <title>Portal | Klaar</title>
+</head>
+<body class="overflow-x-hidden bg-brandBg text-textDark flex items-center justify-center min-h-screen px-8">
+  <div class="max-w-3xl w-full bg-cardBg rounded-2xl p-12 flex flex-col items-center gap-6">
+    <h1 class="font-headland text-3xl font-medium">Ondertekening voltooid</h1>
+    <p class="font-inter text-center">De ondertekening is afgerond op mobiel.</p>
+    <a href="index.html" class="bg-brandBlue hover:bg-brandBlueHover text-white rounded-md px-6 py-3 text-base font-inter inline-flex items-center gap-2 transition-colors duration-200">
+      Nieuwe sessie
+      <span><strong>&gt;</strong></span>
+    </a>
+  </div>
+
+  
+</body>
+</html>
+
+

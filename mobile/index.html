@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="nl" class="overflow-x-hidden">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="./manifest.json">
+  <link rel="icon" type="image/x-icon" href="../favicon.ico">
+  <link href="https://fonts.googleapis.com/css2?family=Headland+One&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { inter: ['Inter','sans-serif'], headland: ['\"Headland One\"','serif'] },
+          colors: { brandBg:'#FAF5EB', textDark:'#222', cardBg:'#F7EFDD', brandBlue:'#163563', brandBlueHover:'#003d8c' }
+        }
+      }
+    }
+  </script>
+  <title>Mobiel | Start</title>
+</head>
+<body class="overflow-x-hidden bg-brandBg text-textDark flex items-center justify-center min-h-screen px-8">
+  <div class="max-w-md w-full bg-cardBg rounded-2xl p-10 flex flex-col items-center gap-6">
+    <h1 class="font-headland text-2xl font-medium">Welkom</h1>
+    <p class="font-inter text-center">Gebruik je camera om de QR te scannen.</p>
+    <a href="/mobile/scan.html" class="bg-brandBlue hover:bg-brandBlueHover text-white rounded-md px-6 py-3 text-base font-inter inline-flex items-center gap-2 transition-colors duration-200">
+      Scan QR
+      <span><strong>&gt;</strong></span>
+    </a>
+    <a href="/portal/index.html" class="font-inter text-sm text-brandBlue underline">Naar portal</a>
+  </div>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js', { scope: '/mobile/' });
+    }
+  </script>
+</body>
+</html>
+
+
