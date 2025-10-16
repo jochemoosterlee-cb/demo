@@ -10,7 +10,7 @@
   <link rel="icon" type="image/x-icon" href="favicon.ico">
   <link href="https://fonts.googleapis.com/css2?family=Headland+One&family=Inter:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet" />
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script> <!-- Load as traditional script -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script> <!-- Switched to a reliable version -->
 
   <script>
     tailwind.config = {
@@ -69,6 +69,10 @@
 
   // Generate QR code after ensuring QRCode is defined
   document.addEventListener('DOMContentLoaded', () => {
+    if (typeof QRCode === 'undefined') {
+      console.error('QRCode library not loaded');
+      return;
+    }
     const qrId = Date.now().toString(); // Unique ID based on timestamp
     new QRCode(document.getElementById('qrcode'), {
       text: qrId,

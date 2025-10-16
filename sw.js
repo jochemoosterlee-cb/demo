@@ -10,11 +10,11 @@ self.addEventListener('install', (event) => {
         './line.svg',
         './eidas.svg',
         './checkmark.svg',
+        './html5-qrcode.min.js', // Local file
         'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js',
         'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js',
         'https://cdn.tailwindcss.com',
-        'https://unpkg.com/html5-qrcode@2.3.8/dist/html5-qrcode.min.js',
-        'https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js'
+        'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js'
       ]);
     })
   );
