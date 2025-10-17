@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en" class="overflow-x-hidden">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <link href="https://fonts.googleapis.com/css2?family=Headland+One&family=Inter:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&display=swap" rel="stylesheet" />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            inter: ['Inter', 'sans-serif'],
+            headland: ['"Headland One"', 'serif'],
+          },
+          colors: {
+            brandBg: '#FAF5EB',
+            textDark: '#222',
+            cardBg: '#F7EFDD',
+            brandBlue: '#163563',
+            brandBlueHover: '#003d8c',
+          },
+        },
+      },
+    };
+  </script>
+
+  <title>Demo</title>
+</head>
+
+<body class="overflow-x-hidden bg-brandBg text-textDark flex flex-col items-center justify-start py-8 px-4">
+
+  <h1 class="font-headland text-[1.4rem] font-medium mb-4">Ondertekenen</h1>
+  <div class="relative w-[400vw] h-10 bg-[url('line.svg')] bg-no-repeat bg-center bg-contain"></div>
+
+  <div class="bg-cardBg rounded-2xl p-8 flex flex-col items-center gap-8 w-[70%] mt-10">
+    <div class="w-16 h-16 bg-[url('eidas.svg')] bg-no-repeat bg-center bg-contain"></div>
+
+    <div class="w-[min(150px,calc(100%*150/160))] aspect-square">
+      <img src="checkmark.svg" alt="Checkmark" class="w-full h-full object-contain" />
+    </div>
+
+    <div class="font-inter text-base text-center text-textDark">Ondertekening voltooid</div>
+  </div>
+
+  <button class="bg-brandBlue hover:bg-brandBlueHover text-white rounded-md px-6 py-3 text-base font-inter mt-10 inline-flex items-center gap-2 transition-colors duration-200">
+    Verder
+    <span><strong>&gt;</strong></span>
+  </button>
+
+</body>
+
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js');
+  }
+</script>
+
+</html>
