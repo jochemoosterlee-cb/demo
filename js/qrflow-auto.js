@@ -223,7 +223,6 @@ async function initScanner(el) {
   const btnSel = el.dataset.manualButton || '';
   const submitOnEnter = boolAttr(el.dataset.manualSubmitOnEnter, true);
   const listSel = el.dataset.cameraList || '';
-  const cancelBtnSel = el.dataset.cancelButton || '';
 
   // Suppress noisy AbortError from video.play() when DOM changes during start
   // (Occurs in some browsers when the scan view toggles visibility.)
@@ -400,12 +399,6 @@ async function initScanner(el) {
     }
   }
 
-  // Stop camera immediately when explicit cancel button is clicked
-  if (cancelBtnSel) {
-    const cancelBtn = document.querySelector(cancelBtnSel);
-    cancelBtn?.addEventListener('click', () => { const ctrl = el._qrflowCtrl; if (ctrl) { try { ctrl.stop(); } catch {} try { ctrl.clear(); } catch {} } });
-  }
-
   // Helper: start only when element is visible (prevents camera from starting in hidden view)
   const isVisible = (node) => {
     if (!node || !(node instanceof Element)) return false;
@@ -449,33 +442,6 @@ async function initScanner(el) {
         try { await startScanner(el); } catch (e) { dispatch(el, 'qrflow:error', { error: e }); }
       }
     });
-  }
-
-  // Extra safety: stop camera on navigation/visibility changes (hardware back, app switch)
-  if (!el._qrflowLifecycleBound) {
-    el._qrflowLifecycleBound = true;
-    const safeStop = async () => {
-      const ctrl = el._qrflowCtrl;
-      if (!ctrl) return;
-      try { await ctrl.stop(); } catch {}
-      try { await ctrl.clear(); } catch {}
-      try {
-        const container = document.getElementById(el.id);
-        const video = container?.querySelector('video');
-        if (video) {
-          try { video.pause?.(); } catch {}
-          const stream = video.srcObject;
-          if (stream && typeof stream.getTracks === 'function') {
-            for (const tr of stream.getTracks()) { try { tr.stop(); } catch {} }
-          }
-          try { video.srcObject = null; } catch {}
-        }
-      } catch {}
-    };
-    window.addEventListener('hashchange', safeStop);
-    window.addEventListener('pagehide', safeStop);
-    window.addEventListener('beforeunload', safeStop);
-    document.addEventListener('visibilitychange', () => { if (document.hidden) safeStop(); });
   }
 }
 
