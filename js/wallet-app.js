@@ -349,7 +349,7 @@ async function onRouteChange() {
       }
     }
   }
-  showView(route);
+  showView(route); try { const ov = document.getElementById('pinOverlay'); if (ov) { ov.classList.add('hidden'); ov.style.display='none'; } } catch {}
   if (doneTimer) {
     try {
       clearTimeout(doneTimer);
