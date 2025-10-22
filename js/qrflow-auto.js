@@ -125,7 +125,8 @@ async function startScanner(el) {
       const backBtn = overlay?.querySelector('#pinBack');
       const err = overlay?.querySelector('#pinError');
       if (overlay && dots && keys) {
-        const showOverlay = () => { try { overlay.style.display = ''; overlay.classList.remove('hidden'); } catch {} }; const hideOverlay = () => { try { overlay.classList.add('hidden'); overlay.style.display = 'none'; } catch {} }; showOverlay();
+        const showOverlay = () => { try { overlay.style.display = ''; overlay.classList.remove('hidden'); } catch {} }; const hideOverlay = () => { try { overlay.classList.add('hidden'); overlay.style.display = 'none'; } catch {} };
+        
         let value = '';
         const PIN = (el.dataset.pinValue || '12345').toString();
         const renderDots = () => {
@@ -135,6 +136,8 @@ async function startScanner(el) {
               : 'w-3 h-3 rounded-full border border-textDark/40 inline-block';
           });
         };
+        renderDots();
+        showOverlay();
         const clearErr = () => {
           if (err) {
             err.textContent = '';
@@ -462,8 +465,9 @@ async function initScanner(el) {
         const backBtn = overlay?.querySelector('#pinBack');
         const err = overlay?.querySelector('#pinError');
         if (overlay && dots && keys) {
-          const showOverlay = () => { try { overlay.style.display = ''; overlay.classList.remove('hidden'); } catch {} }; const hideOverlay = () => { try { overlay.classList.add('hidden'); overlay.style.display = 'none'; } catch {} }; showOverlay();
-          let value = '';
+          const showOverlay = () => { try { overlay.style.display = ''; overlay.classList.remove('hidden'); } catch {} }; const hideOverlay = () => { try { overlay.classList.add('hidden'); overlay.style.display = 'none'; } catch {} };
+          
+          // Reset dots before showing overlay
           const PIN = (el.dataset.pinValue || '12345').toString();
           const renderDots = () => {
             dots.forEach((d, i) => {
@@ -472,6 +476,8 @@ async function initScanner(el) {
                 : 'w-3 h-3 rounded-full border border-textDark/40 inline-block';
             });
           };
+          renderDots();
+          showOverlay();
           const clearErr = () => { if (err) { err.textContent = ''; err.classList.add('invisible'); err.classList.remove('hidden'); } };
           const showErr = (m) => { if (err) { err.textContent = m; err.classList.remove('invisible'); } };
           const trySubmit = async () => {
@@ -670,5 +676,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 });
+
+
 
 
