@@ -71,10 +71,10 @@
     import { QrFlow } from '../js/qrflow.js';
     const params = new URLSearchParams(location.search);
     const type = (params.get('type') || 'INKOMEN').toUpperCase();
-    const issuer = type === 'PID' ? 'BRP' : (type === 'BSN' ? 'BRP' : 'Belastingdienst');
+    const issuer = type === 'PID' ? 'BRP' : 'Belastingdienst';
     const title = document.getElementById('qrTitle');
     if (title) {
-      const map = { PID: 'PID', BSN: 'BSN', INKOMEN: 'Inkomensverklaring' };
+      const map = { PID: 'PID', INKOMEN: 'Inkomensverklaring' };
       title.textContent = `Scan de QR-code (${map[type] || type})`;
     }
     const qrEl2 = document.getElementById('qrcode');
@@ -93,7 +93,6 @@
       if (type === 'PID') {
         const v = (params.get('variant') || '').toLowerCase();
         if (v === 'minor' || params.get('minor') === '1') { base.birth_date = '2010-05-01'; base.age_over_18 = false; }
-      } else if (type === 'BSN') {
         if (params.get('bsn')) base.bsn = params.get('bsn');
       } else if (type === 'INKOMEN') {
         const year = params.get('year'); if (year) base.nl_bld_bri_year = year;

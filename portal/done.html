@@ -42,7 +42,7 @@
 
   <script>
     (function(){
-      const m = { PID: 'PID', BSN: 'BSN', INKOMEN: 'Inkomensverklaring' };
+      const m = { PID: 'PID', INKOMEN: 'Inkomensverklaring' };
       const type = (new URLSearchParams(location.search).get('type') || '').toUpperCase();
       const title = document.getElementById('doneTitle');
       const text = document.getElementById('doneText');

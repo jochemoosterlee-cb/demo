@@ -5,24 +5,20 @@
       "family_name",
       "birth_date",
       "age_over_18",
-      "nationality"
+      "nationality",
+      "bsn"
     ],
     "labels": {
       "given_name": "Voornaam",
       "family_name": "Achternaam",
       "birth_date": "Geboortedatum",
       "age_over_18": "18+",
-      "nationality": "Nationaliteit"
+      "nationality": "Nationaliteit",
+      "bsn": "BSN"
     },
     "format": {
       "birth_date": "date",
       "age_over_18": "boolean"
-    }
-  },
-  "BSN": {
-    "order": ["bsn"],
-    "labels": {
-      "bsn": "BSN"
     }
   },
   "INKOMEN": {
@@ -36,4 +32,3 @@
     }
   }
 }
-

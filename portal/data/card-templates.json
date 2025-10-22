@@ -6,12 +6,9 @@
       "family_name": "Jansen",
       "birth_date": "1985-03-12",
       "age_over_18": true,
-      "nationality": ["NL"]
+      "nationality": ["NL"],
+      "bsn": "123456789"
     }
-  },
-  "BSN": {
-    "issuer": "BRP",
-    "payload": { "bsn": "123456789" }
   },
   "INKOMEN": {
     "issuer": "Belastingdienst",

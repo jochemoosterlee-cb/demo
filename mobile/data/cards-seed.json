@@ -12,17 +12,9 @@
         "family_name": "Jansen",
         "birth_date": "1985-03-12",
         "age_over_18": true,
-        "nationality": ["NL"]
+        "nationality": ["NL"],
+        "bsn": "123456789"
       }
-    },
-    {
-      "id": "BSN-seed",
-      "type": "BSN",
-      "issuer": "BRP",
-      "issuedAt": "2025-01-10",
-      "expiresAt": "2026-01-10",
-      "payload": { "bsn": "123456789" }
     }
   ]
 }
-

@@ -1,10 +1,3 @@
-// Lightweight browser module for QR-based portal/mobile flows.
-// Responsibilities:
-// - Session lifecycle in Firebase at sessions/{qrId}
-// - QR rendering (requires global QRCode from qrcodejs)
-// - Scanning helper (requires global Html5Qrcode from html5-qrcode)
-// Texts/UX remain in pages; this module exposes only primitives + callbacks.
-
 export class QrFlow {
   static async init({ databaseURL }) {
     const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js');
@@ -20,7 +13,6 @@ export class QrFlow {
     this.api = api;
   }
 
-  // --- Session management ---
   async createSession(qrId, { ttlMs = 10 * 60 * 1000 } = {}) {
     const id = qrId || Date.now().toString();
     const { ref, set, serverTimestamp } = this.api;
@@ -52,7 +44,6 @@ export class QrFlow {
     await remove(ref(this.db, `sessions/${qrId}`));
   }
 
-  // --- Offer (metadata) helpers ---
   async setMeta(qrId, meta) { return this.setOffer(qrId, meta); }
   async setOffer(qrId, offer) {
     const { ref, set } = this.api;
@@ -98,9 +89,6 @@ export class QrFlow {
     return () => { try { unsubNew(); } catch {} try { unsubOld(); } catch {} };
   }
 
-  // --- QR rendering ---
-  // Supports size/width/height, colors, error correction level, quiet zone padding, and optional center logo overlay.
-  // correctLevel: one of 'L','M','Q','H' (defaults to 'M').
   renderQr({
     container,
     text,
@@ -122,7 +110,6 @@ export class QrFlow {
     const w = Number.isFinite(width) ? Number(width) : size;
     const h = Number.isFinite(height) ? Number(height) : size;
 
-    // Wrapper to support quiet zone and overlay logo
     const wrapper = document.createElement('div');
     wrapper.style.display = 'inline-block';
     wrapper.style.position = 'relative';
@@ -180,7 +167,6 @@ export class QrFlow {
     return instance;
   }
 
-  // --- Scanning helper ---
   async startScanner({ elementId, onDecode, preferBackCamera = true, fps = 10, qrbox = 250, aspectRatio = 1.0, onCameraSelected, preferredDeviceId } = {}) {
     if (typeof Html5Qrcode === 'undefined') throw new Error('Html5Qrcode not loaded');
     const el = document.getElementById(elementId);
@@ -189,7 +175,6 @@ export class QrFlow {
     const cameras = await Html5Qrcode.getCameras();
     if (!cameras || cameras.length === 0) throw new Error('No cameras found');
 
-    // Build an ordered list of deviceIds to try
     const isBack = (c) => /back|rear|environment/i.test(c.label || '');
     const backList = cameras.filter(isBack).map(c => c.id);
     const otherList = cameras.filter(c => !isBack(c)).map(c => c.id);
@@ -226,7 +211,7 @@ export class QrFlow {
         if (video) {
           video.setAttribute('playsinline', '');
           video.setAttribute('autoplay', '');
-          video.muted = true; // reduce likelihood of play() rejections
+          video.muted = true;
           const p = video.play?.();
           if (p && typeof p.catch === 'function') { p.catch(() => {}); }
         }
@@ -240,7 +225,6 @@ export class QrFlow {
       currentIndex = idx;
     };
 
-    // Attempt to start with each camera until success
     for (let i = 0; i < order.length; i++) {
       try {
         await tryStartAt(i);

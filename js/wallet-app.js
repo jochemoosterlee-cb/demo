@@ -1,5 +1,3 @@
-// Simple SPA router + wallet state and rendering
-
 import { QrFlow } from './qrflow.js';
 
 let flowInstance = null;
@@ -20,7 +18,6 @@ const stateKey = 'walletState';
 const settingsKey = 'walletSettings';
 function loadState() { try { return JSON.parse(localStorage.getItem(stateKey)) || { cards: [] }; } catch { return { cards: [] }; } }
 function saveState(s) { try { localStorage.setItem(stateKey, JSON.stringify(s)); } catch {} }
-// First run: show the seed prompt (hideSeedPrompt=false)
 function loadSettings() { try { return JSON.parse(localStorage.getItem(settingsKey)) || { hideSeedPrompt: false }; } catch { return { hideSeedPrompt: false }; } }
 function saveSettings(s) { try { localStorage.setItem(settingsKey, JSON.stringify(s)); } catch {} }
 
@@ -126,9 +123,7 @@ function migrateState() {
       if (!c || !c.payload) return;
       if (c.type === 'PID') {
         const p = c.payload;
-        // Migrate old fields to new schema keys
         if (p.name && !p.given_name && !p.family_name) {
-          // naive split: first token as given_name, rest as family_name
           const parts = String(p.name).trim().split(/\s+/);
           if (parts.length > 1) {
             p.given_name = parts.slice(0, -1).join(' ');
@@ -139,7 +134,6 @@ function migrateState() {
         }
         if (p.birth && !p.birth_date) p.birth_date = p.birth;
         if (typeof p.age_over_18 === 'undefined') {
-          // derive simple majority flag if possible
           try {
             const ts = Date.parse(p.birth_date || p.birth || '');
             if (!isNaN(ts)) {
@@ -149,7 +143,6 @@ function migrateState() {
           } catch {}
         }
       }
-      // Normalize issuedAt/expiresAt to timestamps
       const toTs = (v) => {
         if (!v) return undefined;
         if (typeof v === 'number') return v;
@@ -171,11 +164,10 @@ function clearWallet() {
 }
 
 function seedFromTemplates() {
-  // Use the wallet's cards-seed.json as the source for PID & BSN seed
   loadJson('./data/cards-seed.json').then((seed) => {
     const now = Date.now();
     const toTs = (v) => { if (!v) return undefined; if (typeof v === 'number') return v; const t = Date.parse(v); return isNaN(t) ? undefined : t; };
-    const sel = Array.isArray(seed?.cards) ? seed.cards.filter(c => c && (c.type === 'PID' || c.type === 'BSN')) : [];
+    const sel = Array.isArray(seed?.cards) ? seed.cards.filter(c => c && c.type === 'PID') : [];
     const mapped = sel.map((c, i) => ({
       id: c.id || `${c.type}-${now + i}`,
       type: c.type,
@@ -186,7 +178,7 @@ function seedFromTemplates() {
       payload: c.payload || {},
     }));
     if (mapped.length === 0) {
-      console.warn('Geen PID/BSN seed gevonden in ./data/cards-seed.json');
+      console.warn('Geen PID seed gevonden in ./data/cards-seed.json');
       return;
     }
     state.cards = [...(state.cards || []), ...mapped];
@@ -211,9 +203,9 @@ function renderCards() {
     } else {
       empty.innerHTML = `
         <p class="font-inter text-sm text-gray-700 mb-3">De wallet is leeg.</p>
-        <p class="font-inter text-sm text-gray-700">Wil je de wallet vullen met PID & BSN?</p>
+        <p class="font-inter text-sm text-gray-700">Wil je de wallet vullen met PID?</p>
         <div class="mt-4 flex items-center justify-center gap-3">
-          <button id="seedWalletBtn" class="px-4 py-2 rounded-md text-sm font-inter bg-brandBlue text-white hover:bg-brandBlueHover">Ja, vul met PID & BSN</button>
+          <button id="seedWalletBtn" class="px-4 py-2 rounded-md text-sm font-inter bg-brandBlue text-white hover:bg-brandBlueHover">Ja, vul met PID</button>
           <button id="skipSeedBtn" class="px-4 py-2 rounded-md text-sm font-inter bg-white border border-gray-300 text-textDark">Nee</button>
         </div>
         <p class="font-inter text-xs text-gray-600 mt-3">Je kunt ook altijd een QR scannen.</p>`;
@@ -236,7 +228,6 @@ function renderCards() {
     const leftWrap = document.createElement('div');
     leftWrap.className = 'flex items-center gap-3';
     leftWrap.appendChild(title);
-    // Status badge on the card (outside details)
     const statusNow = computeStatus(c);
     const badge = document.createElement('span');
     if (statusNow === 'geldig') {
@@ -251,7 +242,6 @@ function renderCards() {
 
     const details = document.createElement('div');
     details.className = c.expanded ? 'block' : 'hidden';
-    // Standard meta rows inside details
     const status = computeStatus(c); const statusCls = status === 'geldig' ? 'text-green-700' : 'text-red-700';
     const metaRows = document.createElement('div');
     metaRows.className = 'mt-1 grid grid-cols-1 gap-1 font-inter text-sm';
@@ -273,7 +263,6 @@ function renderCards() {
     removeBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       state.cards = state.cards.filter((x) => x.id !== c.id);
-      // Als de wallet leeg wordt door verwijderen, toon de seed-vraag NIET automatisch
       if (state.cards.length === 0) { try { settings.hideSeedPrompt = true; saveSettings(settings); } catch {} }
       saveState(state);
       renderCards();
@@ -302,10 +291,10 @@ function currentRoute() { const h = location.hash.replace(/^#\/?/, '').trim(); r
 let doneTimer = null;
 async function onRouteChange() {
   const route = currentRoute();
-  console.log('Route changed to:', route); // Debug
+  console.log('Route changed to:', route);
   const scanView = document.querySelector('[data-view="scan"]');
   if (route !== 'scan') {
-    console.log('Stopping scanner for non-scan route...'); // Debug
+    console.log('Stopping scanner for non-scan route...');
     const scanner = scanView?.querySelector('[data-qrflow="scanner"]');
     if (scanner) {
       const ctrl = scanner._qrflowCtrl;
@@ -322,11 +311,10 @@ async function onRouteChange() {
         } catch (e) {
           console.error('Failed to clear scanner:', e);
         }
-        delete scanner._qrflowCtrl; // Verwijder controller referentie
+        delete scanner._qrflowCtrl;
       } else {
         console.warn('No scanner controller found, attempting manual cleanup...');
       }
-      // Extra: Handmatig video-stream opruimen
       const video = scanView?.querySelector('video');
       if (video && video.srcObject) {
         console.log('Manually stopping video stream...');
@@ -341,7 +329,6 @@ async function onRouteChange() {
         video.srcObject = null;
         video.pause();
       }
-      // Extra: Container leegmaken
       const container = scanView?.querySelector('#reader');
       if (container) {
         container.innerHTML = '';
@@ -388,10 +375,7 @@ function attachScanHandlers() {
   });
 }
 
-// No automatic seeding; offer a prompt in renderCards()
-
 window.addEventListener('DOMContentLoaded', () => {
-  // Load UI schema first; fallback to empty
   loadJson('./data/card-ui.json').then((s) => { uiSchema = s || {}; renderCards(); });
   migrateState();
   renderCards();
@@ -399,7 +383,6 @@ window.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('hashchange', () => { onRouteChange(); });
   onRouteChange();
 
-  // Hidden reset: triple-click on title
   const title = document.getElementById('appTitle');
   if (title) {
     let clicks = 0; let timer = null;
@@ -410,7 +393,6 @@ window.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Clear via hash query (#/wallet?clear=1)
   try {
     const hash = location.hash || '';
     if (/clear=1/i.test(hash)) { clearWallet(); location.hash = '#/wallet'; }
