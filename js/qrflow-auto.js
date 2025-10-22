@@ -79,6 +79,25 @@ async function startScanner(el) {
   let lastId = '';
   const preferredDeviceId = el.dataset.preferredDeviceId || '';
 
+  // Prevent multiple starts
+  if (el.dataset.isStarting === 'true') {
+    console.log('Scanner already starting, skipping...');
+    return el._qrflowCtrl;
+  }
+  el.dataset.isStarting = 'true';
+
+  // Cleanup existing scanner before starting anew
+  if (el._qrflowCtrl) {
+    console.log('Cleaning up existing scanner controller...');
+    try {
+      await el._qrflowCtrl.stop();
+      await el._qrflowCtrl.clear();
+    } catch (e) {
+      console.error('Failed to cleanup existing scanner:', e);
+    }
+    delete el._qrflowCtrl;
+  }
+
   const handleDecoded = async (decodedText) => {
     lastId = decodedText || '';
     const errorEl = document.querySelector(el.dataset.errorTarget || '#scanError');
@@ -170,7 +189,10 @@ async function startScanner(el) {
   };
 
   const cameras = await Html5Qrcode.getCameras();
-  if (!cameras || cameras.length === 0) throw new Error('No cameras found');
+  if (!cameras || cameras.length === 0) {
+    console.error('No cameras found');
+    throw new Error('No cameras found');
+  }
 
   const isBack = (c) => /back|rear|environment/i.test(c.label || '');
   const backList = cameras.filter(isBack).map(c => c.id);
@@ -189,6 +211,32 @@ async function startScanner(el) {
     const id = order[idx];
     console.log('Starting camera with deviceId:', id);
     try {
+      // Ensure container is ready and clean up any existing video stream
+      let video = el.querySelector('video');
+      if (!video) {
+        video = document.createElement('video');
+        video.setAttribute('playsinline', '');
+        video.setAttribute('autoplay', '');
+        video.setAttribute('muted', 'true');
+        video.style.width = '100%';
+        video.style.height = '100%';
+        video.style.objectFit = 'cover';
+        el.appendChild(video);
+        console.log('Created new video element');
+      }
+      if (video.srcObject) {
+        video.srcObject.getTracks().forEach(track => {
+          try {
+            track.stop();
+            console.log('Pre-existing video track stopped:', track.kind);
+          } catch (e) {
+            console.error('Failed to stop pre-existing track:', e);
+          }
+        });
+        video.srcObject = null;
+        video.pause();
+      }
+      await new Promise(r => setTimeout(r, 100)); // Small delay to avoid conflicts
       await instance.start(
         { deviceId: { exact: id } },
         { fps: 10, qrbox: 250, aspectRatio: 1.0 },
@@ -210,12 +258,25 @@ async function startScanner(el) {
             } catch (e) {
               console.error('Failed to clear after decode:', e);
             }
+            if (video && video.srcObject) {
+              video.srcObject.getTracks().forEach(track => {
+                try {
+                  track.stop();
+                  console.log('Video track stopped after decode:', track.kind);
+                } catch (e) {
+                  console.error('Failed to stop track after decode:', e);
+                }
+              });
+              video.srcObject = null;
+              video.pause();
+            }
+            el.innerHTML = ''; // Clear container after decode
           }
         },
         () => {}
       );
       await new Promise(r => setTimeout(r, 500));
-      const video = el.querySelector('video');
+      video = el.querySelector('video'); // Reuse the video variable
       if (video) {
         video.setAttribute('playsinline', '');
         video.setAttribute('autoplay', '');
@@ -238,76 +299,108 @@ async function startScanner(el) {
     }
   };
 
-  for (let i = 0; i < order.length; i++) {
-    try {
-      await tryStartAt(i);
-      const controller = {
-        async stop() {
-          try {
-            await instance.stop();
-            console.log('Controller stop called.');
-          } catch (e) {
-            console.error('Failed to stop scanner:', e);
-          }
-          const video = el.querySelector('video');
-          if (video && video.srcObject) {
-            video.srcObject.getTracks().forEach(track => {
-              try {
-                track.stop();
-                console.log('Video track stopped:', track.kind);
-              } catch (e) {
-                console.error('Failed to stop track:', e);
+  try {
+    for (let i = 0; i < order.length; i++) {
+      try {
+        await tryStartAt(i);
+        const controller = {
+          async stop() {
+            try {
+              await instance.stop();
+              console.log('Controller stop called.');
+            } catch (e) {
+              console.error('Failed to stop scanner:', e);
+            }
+            const video = el.querySelector('video');
+            if (video && video.srcObject) {
+              video.srcObject.getTracks().forEach(track => {
+                try {
+                  track.stop();
+                  console.log('Video track stopped:', track.kind);
+                } catch (e) {
+                  console.error('Failed to stop track:', e);
+                }
+              });
+              video.srcObject = null;
+              video.pause();
+            }
+            el.innerHTML = ''; // Clear container on stop
+            console.log('Scanner container cleared in stop.');
+          },
+          async clear() {
+            try {
+              await instance.clear();
+              console.log('Controller clear called.');
+            } catch (e) {
+              console.error('Failed to clear scanner:', e);
+            }
+            el.innerHTML = ''; // Clear container on clear
+          },
+          async switchToNext() {
+            const next = (currentIndex + 1) % order.length;
+            try {
+              await instance.stop();
+              await instance.clear();
+              const video = el.querySelector('video');
+              if (video && video.srcObject) {
+                video.srcObject.getTracks().forEach(track => {
+                  try {
+                    track.stop();
+                    console.log('Video track stopped:', track.kind);
+                  } catch (e) {
+                    console.error('Failed to stop track:', e);
+                  }
+                });
+                video.srcObject = null;
+                video.pause();
               }
-            });
-            video.srcObject = null;
-            video.pause();
-          }
-          el.innerHTML = '';
-          console.log('Scanner container cleared in stop.');
-        },
-        async clear() {
-          try {
-            await instance.clear();
-            console.log('Controller clear called.');
-          } catch (e) {
-            console.error('Failed to clear scanner:', e);
-          }
-          el.innerHTML = '';
-        },
-        async switchToNext() {
-          const next = (currentIndex + 1) % order.length;
-          try {
-            await instance.stop();
-            await instance.clear();
-          } catch {}
-          await tryStartAt(next);
-        },
-        async switchToDevice(deviceId) {
-          const idx = order.indexOf(deviceId);
-          if (idx === -1) return;
-          try {
-            await instance.stop();
-            await instance.clear();
-          } catch {}
-          await tryStartAt(idx);
-        },
-        instance,
-        get currentDeviceId() {
-          return order[currentIndex];
-        },
-        get cameras() {
-          return order.slice();
-        },
-        get devices() {
-          return cameras.slice();
-        },
-      };
-      el._qrflowCtrl = controller;
-      return controller;
-    } catch (e) {
-      lastError = e;
-      continue;
+              el.innerHTML = ''; // Clear container before switching
+            } catch {}
+            await tryStartAt(next);
+          },
+          async switchToDevice(deviceId) {
+            const idx = order.indexOf(deviceId);
+            if (idx === -1) return;
+            try {
+              await instance.stop();
+              await instance.clear();
+              const video = el.querySelector('video');
+              if (video && video.srcObject) {
+                video.srcObject.getTracks().forEach(track => {
+                  try {
+                    track.stop();
+                    console.log('Video track stopped:', track.kind);
+                  } catch (e) {
+                    console.error('Failed to stop track:', e);
+                  }
+                });
+                video.srcObject = null;
+                video.pause();
+              }
+              el.innerHTML = ''; // Clear container before switching
+            } catch {}
+            await tryStartAt(idx);
+          },
+          instance,
+          get currentDeviceId() {
+            return order[currentIndex];
+          },
+          get cameras() {
+            return order.slice();
+          },
+          get devices() {
+            return cameras.slice();
+          },
+        };
+        el._qrflowCtrl = controller;
+        return controller;
+      } catch (e) {
+        lastError = e;
+        continue;
+      }
     }
+  } finally {
+    el.dataset.isStarting = 'false'; // Reset starting flag
   }
 
   throw lastError || new Error('Unable to start any available camera');
