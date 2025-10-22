@@ -303,12 +303,15 @@ let doneTimer = null;
 async function onRouteChange() {
   const route = currentRoute();
   const scanView = document.querySelector('[data-view="scan"]');
-  if (scanView && scanView.classList.contains('hidden') === false && route !== 'scan') {
-    const scanner = scanView.querySelector('[data-qrflow="scanner"]');
-    const ctrl = scanner && scanner._qrflowCtrl;
+  if (route !== 'scan') {  // Simplified: always attempt stop if not in scan
+    console.log('Attempting to stop scanner for route:', route);  // Optional logging
+    const scanner = scanView?.querySelector('[data-qrflow="scanner"]');
+    const ctrl = scanner?._qrflowCtrl;
     if (ctrl && typeof ctrl.stop === 'function') {
       try { await ctrl.stop(); } catch {}
       try { await ctrl.clear(); } catch {}
+      delete scanner._qrflowCtrl;  // Optional: Clean up reference to prevent reuse
+      console.log('Scanner stopped and cleared for route:', route);  // Optional logging
     }
   }
   showView(route);
