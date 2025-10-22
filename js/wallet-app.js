@@ -202,7 +202,7 @@ function renderCards() {
     if (settings.hideSeedPrompt) {
       empty.innerHTML = `
         <p class="font-inter text-sm text-gray-700 mb-3">De wallet is leeg.</p>
-        <p class="font-inter text-xs text-gray-600">Scan een QR of plak een code om gegevens toe te voegen.</p>`;
+        <p class="font-inter text-xs text-gray-600">Scan een QR om gegevens toe te voegen.</p>`;
       list.appendChild(empty);
     } else {
       empty.innerHTML = `
