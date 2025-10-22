@@ -21,25 +21,30 @@ export class QrFlow {
   }
 
   // --- Session management ---
-  async createSession(qrId) {
+  async createSession(qrId, { ttlMs = 10 * 60 * 1000 } = {}) {
     const id = qrId || Date.now().toString();
     const { ref, set, serverTimestamp } = this.api;
+    const expiresAt = Date.now() + (Number(ttlMs) || 0);
     await set(ref(this.db, `sessions/${id}`), {
       scanned: false,
       completed: false,
       createdAt: serverTimestamp(),
+      expiresAt: expiresAt || null,
+      status: { scannedAt: null, completedAt: null },
     });
     return { id };
   }
 
   async markScanned(qrId) {
-    const { ref, set } = this.api;
+    const { ref, set, serverTimestamp } = this.api;
     await set(ref(this.db, `sessions/${qrId}/scanned`), true);
+    await set(ref(this.db, `sessions/${qrId}/status/scannedAt`), serverTimestamp());
   }
 
   async markCompleted(qrId) {
-    const { ref, set } = this.api;
+    const { ref, set, serverTimestamp } = this.api;
     await set(ref(this.db, `sessions/${qrId}/completed`), true);
+    await set(ref(this.db, `sessions/${qrId}/status/completedAt`), serverTimestamp());
   }
 
   async deleteSession(qrId) {
@@ -47,16 +52,50 @@ export class QrFlow {
     await remove(ref(this.db, `sessions/${qrId}`));
   }
 
+  // --- Offer (metadata) helpers ---
+  async setMeta(qrId, meta) { return this.setOffer(qrId, meta); }
+  async setOffer(qrId, offer) {
+    const { ref, set } = this.api;
+    const payload = offer && offer.payload ? offer.payload : (offer || {});
+    const normalized = { type: offer?.type || '', issuer: offer?.issuer || '', payload, version: offer?.version || 1 };
+    await set(ref(this.db, `sessions/${qrId}/offer`), normalized);
+  }
+
+  async getMeta(qrId) { return this.getOffer(qrId); }
+  async getOffer(qrId) {
+    const { ref, get } = this.api;
+    let snap = await get(ref(this.db, `sessions/${qrId}/offer`));
+    let val = snap && typeof snap.val === 'function' ? snap.val() : (snap ? snap.val : null);
+    if (val) return val;
+    snap = await get(ref(this.db, `sessions/${qrId}/meta`));
+    val = snap && typeof snap.val === 'function' ? snap.val() : (snap ? snap.val : null);
+    return val;
+  }
+
+  async sessionExists(qrId) {
+    const { ref, get } = this.api;
+    const snap = await get(ref(this.db, `sessions/${qrId}`));
+    try { if (typeof snap.exists === 'function') return snap.exists(); } catch {}
+    const v = snap && typeof snap.val === 'function' ? snap.val() : (snap ? snap.val : null);
+    return v != null;
+  }
+
   onScanned(qrId, callback) {
     const { ref, onValue } = this.api;
-    const r = ref(this.db, `sessions/${qrId}/scanned`);
-    return onValue(r, (snap) => { if (snap.val() === true) callback(true); });
+    const rNew = ref(this.db, `sessions/${qrId}/status/scannedAt`);
+    const unsubNew = onValue(rNew, (snap) => { if (snap.val()) callback(true); });
+    const rOld = ref(this.db, `sessions/${qrId}/scanned`);
+    const unsubOld = onValue(rOld, (snap) => { if (snap.val() === true) callback(true); });
+    return () => { try { unsubNew(); } catch {} try { unsubOld(); } catch {} };
   }
 
   onCompleted(qrId, callback) {
     const { ref, onValue } = this.api;
-    const r = ref(this.db, `sessions/${qrId}/completed`);
-    return onValue(r, (snap) => { if (snap.val() === true) callback(true); });
+    const rNew = ref(this.db, `sessions/${qrId}/status/completedAt`);
+    const unsubNew = onValue(rNew, (snap) => { if (snap.val()) callback(true); });
+    const rOld = ref(this.db, `sessions/${qrId}/completed`);
+    const unsubOld = onValue(rOld, (snap) => { if (snap.val() === true) callback(true); });
+    return () => { try { unsubNew(); } catch {} try { unsubOld(); } catch {} };
   }
 
   // --- QR rendering ---
@@ -142,7 +181,7 @@ export class QrFlow {
   }
 
   // --- Scanning helper ---
-  async startScanner({ elementId, onDecode, preferBackCamera = true, fps = 10, qrbox = 250, aspectRatio = 1.0, onCameraSelected } = {}) {
+  async startScanner({ elementId, onDecode, preferBackCamera = true, fps = 10, qrbox = 250, aspectRatio = 1.0, onCameraSelected, preferredDeviceId } = {}) {
     if (typeof Html5Qrcode === 'undefined') throw new Error('Html5Qrcode not loaded');
     const el = document.getElementById(elementId);
     if (!el) throw new Error(`Scanner element #${elementId} not found`);
@@ -154,7 +193,10 @@ export class QrFlow {
     const isBack = (c) => /back|rear|environment/i.test(c.label || '');
     const backList = cameras.filter(isBack).map(c => c.id);
     const otherList = cameras.filter(c => !isBack(c)).map(c => c.id);
-    const order = preferBackCamera ? [...backList, ...otherList] : [...otherList, ...backList];
+    let order = preferBackCamera ? [...backList, ...otherList] : [...otherList, ...backList];
+    if (preferredDeviceId && order.includes(preferredDeviceId)) {
+      order = [preferredDeviceId, ...order.filter((x) => x !== preferredDeviceId)];
+    }
 
     const instance = new Html5Qrcode(elementId);
     let resolved = false;
@@ -202,9 +244,17 @@ export class QrFlow {
             try { await instance.clear(); } catch {}
             await tryStartAt(next);
           },
+          async switchToDevice(deviceId) {
+            const idx = order.indexOf(deviceId);
+            if (idx === -1) return;
+            try { await instance.stop(); } catch {}
+            try { await instance.clear(); } catch {}
+            await tryStartAt(idx);
+          },
           instance,
           get currentDeviceId() { return order[currentIndex]; },
           get cameras() { return order.slice(); },
+          get devices() { return cameras.slice(); },
         };
         return controller;
       } catch (e) {
