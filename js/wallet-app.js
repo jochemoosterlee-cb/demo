@@ -20,7 +20,8 @@ const stateKey = 'walletState';
 const settingsKey = 'walletSettings';
 function loadState() { try { return JSON.parse(localStorage.getItem(stateKey)) || { cards: [] }; } catch { return { cards: [] }; } }
 function saveState(s) { try { localStorage.setItem(stateKey, JSON.stringify(s)); } catch {} }
-function loadSettings() { try { return JSON.parse(localStorage.getItem(settingsKey)) || { hideSeedPrompt: true }; } catch { return { hideSeedPrompt: true }; } }
+// First run: show the seed prompt (hideSeedPrompt=false)
+function loadSettings() { try { return JSON.parse(localStorage.getItem(settingsKey)) || { hideSeedPrompt: false }; } catch { return { hideSeedPrompt: false }; } }
 function saveSettings(s) { try { localStorage.setItem(settingsKey, JSON.stringify(s)); } catch {} }
 
 let state = loadState();
