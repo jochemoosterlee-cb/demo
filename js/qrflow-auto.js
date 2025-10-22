@@ -443,6 +443,21 @@ async function initScanner(el) {
       }
     });
   }
+
+  // Extra safety: stop camera on navigation/visibility changes (hardware back, app switch)
+  if (!el._qrflowLifecycleBound) {
+    el._qrflowLifecycleBound = true;
+    const safeStop = async () => {
+      const ctrl = el._qrflowCtrl;
+      if (!ctrl) return;
+      try { await ctrl.stop(); } catch {}
+      try { await ctrl.clear(); } catch {}
+    };
+    window.addEventListener('hashchange', safeStop);
+    window.addEventListener('pagehide', safeStop);
+    window.addEventListener('beforeunload', safeStop);
+    document.addEventListener('visibilitychange', () => { if (document.hidden) safeStop(); });
+  }
 }
 
 // Global handler for completion buttons
