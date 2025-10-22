@@ -10,7 +10,7 @@ async function flow() {
   return flowInstance;
 }
 
-const VIEWS = ['landing', 'scan', 'wallet', 'share', 'done'];
+const VIEWS = ['scan', 'wallet', 'share', 'done'];
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 
