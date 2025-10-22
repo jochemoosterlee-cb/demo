@@ -223,6 +223,7 @@ async function initScanner(el) {
   const btnSel = el.dataset.manualButton || '';
   const submitOnEnter = boolAttr(el.dataset.manualSubmitOnEnter, true);
   const listSel = el.dataset.cameraList || '';
+  const cancelBtnSel = el.dataset.cancelButton || '';
 
   // Suppress noisy AbortError from video.play() when DOM changes during start
   // (Occurs in some browsers when the scan view toggles visibility.)
@@ -397,6 +398,12 @@ async function initScanner(el) {
     } catch (e) {
       dispatch(el, 'qrflow:error', { error: e });
     }
+  }
+
+  // Stop camera immediately when explicit cancel button is clicked
+  if (cancelBtnSel) {
+    const cancelBtn = document.querySelector(cancelBtnSel);
+    cancelBtn?.addEventListener('click', () => { const ctrl = el._qrflowCtrl; if (ctrl) { try { ctrl.stop(); } catch {} try { ctrl.clear(); } catch {} } });
   }
 
   // Helper: start only when element is visible (prevents camera from starting in hidden view)
