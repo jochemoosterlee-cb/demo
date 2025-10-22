@@ -222,6 +222,15 @@ export class QrFlow {
       await new Promise(r => setTimeout(r, 500));
       const container = document.getElementById(elementId);
       const video = container?.querySelector('video');
+      try {
+        if (video) {
+          video.setAttribute('playsinline', '');
+          video.setAttribute('autoplay', '');
+          video.muted = true; // reduce likelihood of play() rejections
+          const p = video.play?.();
+          if (p && typeof p.catch === 'function') { p.catch(() => {}); }
+        }
+      } catch {}
       const playing = video && video.readyState >= 2 && (video.videoWidth || 0) > 0;
       if (!playing) {
         try { await instance.stop(); } catch {}

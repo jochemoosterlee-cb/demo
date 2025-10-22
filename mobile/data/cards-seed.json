@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "cards": [
+    {
+      "id": "PID-seed",
+      "type": "PID",
+      "issuer": "BRP",
+      "issuedAt": "2025-01-10",
+      "expiresAt": "2026-01-10",
+      "payload": {
+        "given_name": "Jan",
+        "family_name": "Jansen",
+        "birth_date": "1985-03-12",
+        "age_over_18": true,
+        "nationality": ["NL"]
+      }
+    },
+    {
+      "id": "BSN-seed",
+      "type": "BSN",
+      "issuer": "BRP",
+      "issuedAt": "2025-01-10",
+      "expiresAt": "2026-01-10",
+      "payload": { "bsn": "123456789" }
+    }
+  ]
+}
+

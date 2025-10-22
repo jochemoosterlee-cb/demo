@@ -32,16 +32,25 @@
 </head>
 <body class="overflow-x-hidden bg-brandBg text-textDark flex items-center justify-center min-h-screen px-8">
   <div class="max-w-3xl w-full bg-cardBg rounded-2xl p-12 flex flex-col items-center gap-6">
-    <h1 class="font-headland text-3xl font-medium">Ondertekening voltooid</h1>
-    <p class="font-inter text-center">De ondertekening is afgerond op mobiel.</p>
+    <h1 id="doneTitle" class="font-headland text-3xl font-medium">Kaartje toegevoegd</h1>
+    <p id="doneText" class="font-inter text-center">Het gekozen kaartje is succesvol toegevoegd aan de wallet.</p>
     <a href="index.html" class="bg-brandBlue hover:bg-brandBlueHover text-white rounded-md px-6 py-3 text-base font-inter inline-flex items-center gap-2 transition-colors duration-200">
-      Nieuwe sessie
+      Verder
       <span><strong>&gt;</strong></span>
     </a>
   </div>
 
-  
+  <script>
+    (function(){
+      const m = { PID: 'PID', BSN: 'BSN', INKOMEN: 'Inkomensverklaring' };
+      const type = (new URLSearchParams(location.search).get('type') || '').toUpperCase();
+      const title = document.getElementById('doneTitle');
+      const text = document.getElementById('doneText');
+      if (type && m[type]) {
+        title.textContent = `${m[type]} toegevoegd`;
+        text.textContent = `De ${m[type]} is succesvol toegevoegd aan de wallet.`;
+      }
+    })();
+  </script>
 </body>
 </html>
-
-

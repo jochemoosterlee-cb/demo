@@ -1,0 +1,39 @@
+{
+  "PID": {
+    "order": [
+      "given_name",
+      "family_name",
+      "birth_date",
+      "age_over_18",
+      "nationality"
+    ],
+    "labels": {
+      "given_name": "Voornaam",
+      "family_name": "Achternaam",
+      "birth_date": "Geboortedatum",
+      "age_over_18": "18+",
+      "nationality": "Nationaliteit"
+    },
+    "format": {
+      "birth_date": "date",
+      "age_over_18": "boolean"
+    }
+  },
+  "BSN": {
+    "order": ["bsn"],
+    "labels": {
+      "bsn": "BSN"
+    }
+  },
+  "INKOMEN": {
+    "order": ["nl_bld_bri_year", "nl_bld_bri_income"],
+    "labels": {
+      "nl_bld_bri_year": "Jaar",
+      "nl_bld_bri_income": "Inkomen"
+    },
+    "format": {
+      "nl_bld_bri_income": "eur"
+    }
+  }
+}
+

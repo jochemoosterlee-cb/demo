@@ -322,7 +322,7 @@ function attachScanHandlers() {
     scanner.addEventListener('qrflow:scanned', async (e) => {
       const id = (scanner.getAttribute('data-session-id') || (e.detail && e.detail.id) || '').toString();
       if (!id) return;
-      try { const f = await flow(); const meta = await f.getMeta(id); if (meta) pendingMeta.set(id, meta); } catch {}
+      try { const f = await flow(); const meta = await f.getOffer(id); if (meta) pendingMeta.set(id, meta); } catch {}
     });
     scanner.addEventListener('qrflow:completed', (e) => {
       const id = (scanner.getAttribute('data-session-id') || (e.detail && e.detail.id) || '').toString();
