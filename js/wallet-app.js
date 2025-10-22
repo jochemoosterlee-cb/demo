@@ -309,6 +309,18 @@ async function onRouteChange() {
     if (ctrl && typeof ctrl.stop === 'function') {
       try { await ctrl.stop(); } catch {}
       try { await ctrl.clear(); } catch {}
+      // Hard stop any leftover MediaStream tracks as a last resort
+      try {
+        const video = scanView.querySelector('video');
+        if (video) {
+          try { video.pause?.(); } catch {}
+          const stream = video.srcObject;
+          if (stream && typeof stream.getTracks === 'function') {
+            for (const tr of stream.getTracks()) { try { tr.stop(); } catch {} }
+          }
+          try { video.srcObject = null; } catch {}
+        }
+      } catch {}
     }
   }
   showView(route);

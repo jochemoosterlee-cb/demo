@@ -452,6 +452,18 @@ async function initScanner(el) {
       if (!ctrl) return;
       try { await ctrl.stop(); } catch {}
       try { await ctrl.clear(); } catch {}
+      try {
+        const container = document.getElementById(el.id);
+        const video = container?.querySelector('video');
+        if (video) {
+          try { video.pause?.(); } catch {}
+          const stream = video.srcObject;
+          if (stream && typeof stream.getTracks === 'function') {
+            for (const tr of stream.getTracks()) { try { tr.stop(); } catch {} }
+          }
+          try { video.srcObject = null; } catch {}
+        }
+      } catch {}
     };
     window.addEventListener('hashchange', safeStop);
     window.addEventListener('pagehide', safeStop);
