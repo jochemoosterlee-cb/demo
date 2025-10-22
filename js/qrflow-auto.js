@@ -40,6 +40,15 @@ async function initPresenter(el) {
     id = r.id;
     el.dataset.sessionId = id;
   }
+  // Classify session at creation if presenter provided intent/kind/type
+  try {
+    const intent = el.dataset.intent || '';
+    const kind = el.dataset.kind || '';
+    const typ = el.dataset.type || '';
+    if (intent || kind || typ) {
+      await f.setSessionInfo(id, { intent, kind, type: typ });
+    }
+  } catch {}
   try {
     sessionStorage.setItem("qrId", id);
   } catch {}
@@ -109,7 +118,29 @@ async function startScanner(el) {
     } catch {}
     dispatch(el, "qrflow:scanned", { id: lastId });
     const nextUrl = el.dataset.nextUrl || "";
-    const requirePin = boolAttr(el.dataset.requirePin, false);
+    // Determine behavior dynamically with quick intent check (fast path)
+    let isUseCard = false;
+    try {
+      let tries = 0;
+      while (tries < 10 && !isUseCard) {
+        const intentRoot = await f.getIntent(lastId);
+        isUseCard = String(intentRoot || '').toLowerCase() === 'use_card';
+        if (isUseCard) break;
+        if (tries >= 3) {
+          // After a few tries, also check request/offer to be safe
+          let meta = null;
+          try { meta = await f.getRequest(lastId); } catch {}
+          if (!meta) { try { meta = await f.getOffer(lastId); } catch {} }
+          if (meta && ((meta.intent && meta.intent === 'use_card') || (meta.payload && meta.payload.intent === 'use_card'))) {
+            isUseCard = true; break;
+          }
+        }
+        tries++;
+        await new Promise(r => setTimeout(r, 200));
+      }
+    } catch {}
+    const requirePin = isUseCard ? false : boolAttr(el.dataset.requirePin, false);
+    const shouldDeleteOnComplete = boolAttr(el.dataset.deleteOnComplete, false) && !isUseCard;
     if (requirePin) {
       const overlay = document.querySelector(el.dataset.pinOverlay || "#pinOverlay");
       const dots = overlay?.querySelectorAll("#pinDots > span");
@@ -167,7 +198,7 @@ async function startScanner(el) {
                   f.markCompleted(lastId);
                 } catch {}
                 dispatch(el, "qrflow:completed", { id: lastId });
-                if (boolAttr(el.dataset.deleteOnComplete, false)) {
+                if (shouldDeleteOnComplete) {
                   try {
                     f.deleteSession(lastId);
                   } catch {}
@@ -430,7 +461,28 @@ async function initScanner(el) {
       } catch {}
       dispatch(el, "qrflow:scanned", { id: lastId });
       const nextUrl = el.dataset.nextUrl || "";
-      const requirePin = boolAttr(el.dataset.requirePin, false);
+      // Determine intent for manual flow too (fast path + small retry fallback)
+      let isUseCard = false;
+      try {
+        let tries = 0;
+        while (tries < 10 && !isUseCard) {
+          const intentRoot = await f.getIntent(lastId);
+          isUseCard = String(intentRoot || '').toLowerCase() === 'use_card';
+          if (isUseCard) break;
+          if (tries >= 3) {
+            let meta = null;
+            try { meta = await f.getRequest(lastId); } catch {}
+            if (!meta) { try { meta = await f.getOffer(lastId); } catch {} }
+            if (meta && ((meta.intent && meta.intent === 'use_card') || (meta.payload && meta.payload.intent === 'use_card'))) {
+              isUseCard = true; break;
+            }
+          }
+          tries++;
+          await new Promise(r => setTimeout(r, 200));
+        }
+      } catch {}
+      const shouldDeleteOnComplete = boolAttr(el.dataset.deleteOnComplete, false) && !isUseCard;
+      const requirePin = boolAttr(el.dataset.requirePin, false) && !isUseCard;
       if (requirePin) {
         const overlay = document.querySelector(el.dataset.pinOverlay || "#pinOverlay");
         const dots = overlay?.querySelectorAll("#pinDots > span");
@@ -451,6 +503,7 @@ async function initScanner(el) {
             } catch {}
           };
 
+          let value = "";
           const PIN = (el.dataset.pinValue || "12345").toString();
           const renderDots = () => {
             dots.forEach((d, i) => {
@@ -487,7 +540,7 @@ async function initScanner(el) {
               try {
                 overlay.classList.add("hidden");
               } catch {}
-              if (el.dataset.deleteOnComplete) {
+              if (shouldDeleteOnComplete) {
                 try {
                   await f.deleteSession(lastId);
                 } catch {}
@@ -558,7 +611,7 @@ async function initScanner(el) {
           await f.markCompleted(lastId);
         } catch {}
         dispatch(el, "qrflow:completed", { id: lastId });
-        if (el.dataset.deleteOnComplete) {
+        if (shouldDeleteOnComplete) {
           try {
             await f.deleteSession(lastId);
           } catch {}
@@ -569,7 +622,7 @@ async function initScanner(el) {
       try {
         f.onCompleted(lastId, async () => {
           dispatch(el, "qrflow:completed", { id: lastId });
-          if (el.dataset.deleteOnComplete) {
+          if (shouldDeleteOnComplete) {
             try {
               await f.deleteSession(lastId);
             } catch {}

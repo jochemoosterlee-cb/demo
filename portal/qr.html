@@ -71,7 +71,7 @@
     import { QrFlow } from '../js/qrflow.js';
     const params = new URLSearchParams(location.search);
     const type = (params.get('type') || 'INKOMEN').toUpperCase();
-    const issuer = type === 'PID' ? 'BRP' : 'Belastingdienst';
+    const issuer = type === 'PID' ? 'Gemeente Rotterdam' : 'Belastingdienst';
     const title = document.getElementById('qrTitle');
     if (title) {
       const map = { PID: 'PID', INKOMEN: 'Inkomensverklaring' };

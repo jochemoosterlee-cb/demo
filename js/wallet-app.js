@@ -10,7 +10,7 @@ async function flow() {
   return flowInstance;
 }
 
-const VIEWS = ['landing', 'scan', 'wallet', 'done'];
+const VIEWS = ['landing', 'scan', 'wallet', 'share', 'done'];
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
 
@@ -25,6 +25,7 @@ let state = loadState();
 let settings = loadSettings();
 const pendingMeta = new Map();
 let uiSchema = {};
+let pendingShare = null; // { id, meta, card }
 
 async function loadJson(url) {
   try {
@@ -37,11 +38,12 @@ async function loadJson(url) {
 
 function addCardFromSession(id, metaOverride) {
   const meta = metaOverride || { type: 'INKOMEN', issuer: 'Belastingdienst', payload: {} };
+  const cType = canonicalType(meta.type || '');
   const now = Date.now();
   const oneYear = 365 * 24 * 60 * 60 * 1000;
   const card = {
-    id: `${meta.type}-${now}`,
-    type: meta.type,
+    id: `${cType}-${now}`,
+    type: cType,
     issuer: meta.issuer,
     issuedAt: now,
     expiresAt: now + oneYear,
@@ -121,6 +123,8 @@ function migrateState() {
     if (!state || !Array.isArray(state.cards)) return;
     state.cards.forEach((c) => {
       if (!c || !c.payload) return;
+      // Normalize type values for robustness
+      c.type = canonicalType(c.type || '');
       if (c.type === 'PID') {
         const p = c.payload;
         if (p.name && !p.given_name && !p.family_name) {
@@ -278,6 +282,149 @@ function renderCards() {
   });
 }
 
+async function confirmWithPin(pinValue = '12345') {
+  return new Promise((resolve) => {
+    try {
+      const overlay = document.getElementById('pinOverlay');
+      const dots = overlay?.querySelectorAll('#pinDots > span');
+      const keys = overlay?.querySelectorAll('.pin-key');
+      const backBtn = overlay?.querySelector('#pinBack');
+      const cancelBtn = overlay?.querySelector('#pinCancel');
+      const err = overlay?.querySelector('#pinError');
+      if (!overlay || !dots || !keys || !err) { resolve(true); return; }
+
+      let value = '';
+      const PIN = (pinValue || '12345').toString();
+      const renderDots = () => {
+        dots.forEach((d, i) => {
+          d.className = i < value.length
+            ? 'w-3 h-3 rounded-full bg-textDark inline-block'
+            : 'w-3 h-3 rounded-full border border-textDark/40 inline-block';
+        });
+      };
+      const clearErr = () => { try { err.textContent = ''; err.classList.add('invisible'); err.classList.remove('hidden'); } catch {} };
+      const showErr = (m) => { try { err.textContent = m; err.classList.remove('invisible'); } catch {} };
+      const showOverlay = () => { try { overlay.style.display = ''; overlay.classList.remove('hidden'); } catch {} };
+      const hideOverlay = () => { try { overlay.classList.add('hidden'); overlay.style.display = 'none'; } catch {} };
+
+      const cleanup = () => {
+        try { keys.forEach((k) => k.removeEventListener('click', onKey)); } catch {}
+        try { backBtn && backBtn.removeEventListener('click', onBack); } catch {}
+        try { cancelBtn && cancelBtn.removeEventListener('click', onCancel); } catch {}
+        try { window.removeEventListener('keydown', onKeydown); } catch {}
+      };
+
+      const trySubmit = () => {
+        if (value.length !== PIN.length) return;
+        if (value !== PIN) {
+          value = '';
+          renderDots();
+          showErr('Onjuiste PIN. Probeer opnieuw.');
+          return;
+        }
+        clearErr();
+        cleanup();
+        hideOverlay();
+        resolve(true);
+      };
+
+      const onKey = (e) => {
+        const t = e.currentTarget;
+        if (!(t instanceof Element)) return;
+        const d = t.getAttribute('data-digit');
+        if (!d) return;
+        clearErr();
+        if (value.length >= PIN.length) return;
+        value += d;
+        renderDots();
+        if (value.length === PIN.length) trySubmit();
+      };
+      const onBack = (e) => { e?.preventDefault?.(); clearErr(); value = value.slice(0, -1); renderDots(); };
+      const onCancel = (e) => { e?.preventDefault?.(); cleanup(); hideOverlay(); resolve(false); };
+      const onKeydown = (e) => {
+        if (/^[0-9]$/.test(e.key)) {
+          if (value.length < PIN.length) {
+            value += e.key;
+            renderDots();
+            if (value.length === PIN.length) trySubmit();
+          }
+          e.preventDefault();
+        } else if (e.key === 'Backspace') {
+          value = value.slice(0, -1);
+          renderDots();
+          e.preventDefault();
+        }
+      };
+
+      keys.forEach((k) => k.addEventListener('click', onKey));
+      backBtn && backBtn.addEventListener('click', onBack);
+      cancelBtn && cancelBtn.addEventListener('click', onCancel);
+      window.addEventListener('keydown', onKeydown, { once: false });
+
+      clearErr();
+      renderDots();
+      showOverlay();
+    } catch {
+      resolve(true);
+    }
+  });
+}
+
+function renderShareView() {
+  const info = document.getElementById('shareInfo');
+  const details = document.getElementById('shareDetails');
+  const err = document.getElementById('shareError');
+  const btn = document.getElementById('shareConfirm');
+  const cancel = document.getElementById('shareCancel');
+  if (!info || !details || !btn || !err) return;
+  info.textContent = '';
+  details.innerHTML = '';
+  err.textContent = '';
+  if (!pendingShare || !pendingShare.card) {
+    info.textContent = 'Geen passend kaartje in de wallet gevonden voor dit verzoek.';
+    try { btn.style.display = 'none'; } catch {}
+    if (cancel) { cancel.textContent = 'Verder'; cancel.style.display = ''; }
+    // Notify portal that nothing was found (once)
+    if (pendingShare && !pendingShare._reported) {
+      pendingShare._reported = true;
+      (async () => {
+        try {
+          const f = await flow();
+          let reqType = (pendingShare.meta?.type || '').toString().toUpperCase().trim();
+          if (!reqType) { try { const rt = await f.getType(pendingShare.id); if (rt) reqType = String(rt).toUpperCase().trim(); } catch {} }
+          await f.setShared(pendingShare.id, { error: 'not_found', requestedType: reqType, version: 1 });
+          await f.setResponse(pendingShare.id, { outcome: 'not_found', requestedType: reqType, version: 1 });
+          await f.markCompleted(pendingShare.id);
+          try { sessionStorage.setItem('lastAction', 'shared_none'); } catch {}
+          try { window.location.hash = '#/done'; } catch {}
+        } catch {}
+      })();
+    }
+    return;
+  }
+  const { meta, card } = pendingShare;
+  const labelMap = { PID: 'PID', INKOMEN: 'Inkomensverklaring' };
+  const title = labelMap[card.type] || card.type;
+  info.textContent = `Je staat op het punt je ${title} te delen met het portaal.`;
+  const block = renderDetailsFromSchema(card.type, card.payload || {});
+  details.appendChild(block);
+  try { btn.style.display = ''; } catch {}
+  if (cancel) { cancel.textContent = 'Annuleren'; cancel.style.display = ''; }
+  btn.onclick = async () => {
+    btn.disabled = true;
+    const ok = await confirmWithPin('12345');
+    if (!ok) { btn.disabled = false; return; }
+    try {
+      const f = await flow();
+      await f.setShared(pendingShare.id, { type: card.type, issuer: card.issuer, payload: card.payload, version: 1 });
+      await f.setResponse(pendingShare.id, { outcome: 'ok', type: card.type, issuer: card.issuer, payload: card.payload, version: 1 });
+      await f.markCompleted(pendingShare.id);
+    } catch {}
+    try { sessionStorage.setItem('lastAction', 'shared'); } catch {}
+    try { window.location.hash = '#/done'; } catch {}
+  };
+}
+
 function showView(name) {
   VIEWS.forEach(v => {
     const s = document.querySelector(`[data-view="${v}"]`);
@@ -344,6 +491,20 @@ async function onRouteChange() {
     doneTimer = null;
   }
   if (route === 'done') {
+    try {
+      const el = document.getElementById('doneTitle');
+      const icon = document.getElementById('doneIcon');
+      const last = sessionStorage.getItem('lastAction') || '';
+      if (el) {
+        if (last === 'shared') el.textContent = 'Gegevens gedeeld';
+        else if (last === 'shared_none') el.textContent = 'Niet gedeeld';
+        else el.textContent = 'Kaartje toegevoegd';
+      }
+      if (icon) {
+        const success = (last === 'shared' || last === 'added');
+        icon.style.display = success ? '' : 'none';
+      }
+    } catch {}
     doneTimer = setTimeout(() => {
       try {
         window.location.replace('#/wallet');
@@ -351,6 +512,34 @@ async function onRouteChange() {
         window.location.hash = '#/wallet';
       }
     }, 1000);
+  }
+  if (route === 'share') {
+    renderShareView();
+  }
+  if (route === 'scan') {
+    // Reset manual input and any previous error/session state
+    try {
+      const input = document.getElementById('manualCode');
+      if (input) input.value = '';
+    } catch {}
+    try {
+      const err = document.getElementById('scanError');
+      if (err) err.textContent = '';
+    } catch {}
+    try { sessionStorage.removeItem('lastAction'); } catch {}
+    try {
+      const scanner = scanView?.querySelector('[data-qrflow="scanner"]');
+      if (scanner) {
+        delete scanner.dataset.sessionId;
+        if (scanner._qrflowCtrl) {
+          try { await scanner._qrflowCtrl.stop?.(); } catch {}
+          try { await scanner._qrflowCtrl.clear?.(); } catch {}
+          delete scanner._qrflowCtrl;
+        }
+        const container = scanView?.querySelector('#reader');
+        if (container) container.innerHTML = '';
+      }
+    } catch {}
   }
 }
 
@@ -361,16 +550,83 @@ function attachScanHandlers() {
     scanner.addEventListener('qrflow:scanned', async (e) => {
       const id = (scanner.getAttribute('data-session-id') || (e.detail && e.detail.id) || '').toString();
       if (!id) return;
-      try { const f = await flow(); const meta = await f.getOffer(id); if (meta) pendingMeta.set(id, meta); } catch {}
+      try {
+        const f = await flow();
+        // Fast path: check root intent
+        let intent = '';
+        try { intent = String(await f.getIntent(id) || '').toLowerCase(); } catch {}
+        // Fallback to meta detection if needed
+        let meta = null;
+        const ensureMeta = async () => {
+          let m = await f.getRequest(id);
+          if (!m) m = await f.getOffer(id);
+          return m;
+        };
+        // Always attempt to have meta ready for both flows (especially add-card)
+        meta = await ensureMeta();
+        if (!meta) {
+          for (let i = 0; i < 10 && !meta; i++) {
+            await new Promise(r => setTimeout(r, 200));
+            try { meta = await ensureMeta(); } catch {}
+          }
+        }
+        if (meta) pendingMeta.set(id, meta);
+        if (!intent) {
+          intent = (meta && (meta.intent || (meta.payload && meta.payload.intent))) ? String(meta.intent || meta.payload.intent).toLowerCase() : '';
+        }
+        if (intent === 'use_card') {
+          let reqType = '';
+          try {
+            const m = pendingMeta.get(id) || (await f.getRequest(id)) || null;
+            reqType = (m && m.type) ? String(m.type).toUpperCase().trim() : '';
+            if (!reqType) {
+              const rootType = await f.getType(id);
+              if (rootType) reqType = String(rootType).toUpperCase().trim();
+            }
+            if (!meta) meta = m;
+          } catch {}
+          const normalize = (s) => (s == null ? '' : String(s).toUpperCase().trim());
+          let found = state.cards.find(c => normalize(c.type) === reqType) || null;
+          // Fallbacks: detect by known payload keys if type missing or no match
+          const hasIncome = (c) => c && c.payload && (('nl_bld_bri_year' in (c.payload||{})) || ('nl_bld_bri_income' in (c.payload||{})));
+          if (!found && (reqType === 'INKOMEN' || reqType === '')) {
+            found = state.cards.find(hasIncome) || found;
+          }
+          if (!found && reqType === '' && state.cards.length === 1) {
+            // As a last resort, if there is exactly one card, offer it
+            found = state.cards[0];
+          }
+          pendingShare = { id, meta, card: found };
+          try { window.location.hash = '#/share'; } catch {}
+          renderShareView();
+        }
+      } catch {}
     });
-    scanner.addEventListener('qrflow:completed', (e) => {
+    scanner.addEventListener('qrflow:completed', async (e) => {
       const id = (scanner.getAttribute('data-session-id') || (e.detail && e.detail.id) || '').toString();
       if (!id) return;
-      const m = pendingMeta.get(id) || null;
+      const f = await flow();
+      // Check request first to see if this was a 'use_card' flow; if so, don't add a card.
+      try {
+        let intentReq = '';
+        try { intentReq = String(await f.getIntent(id) || '').toLowerCase(); } catch {}
+        if (!intentReq) {
+          const req = await f.getRequest(id);
+          intentReq = (req && req.intent) ? String(req.intent).toLowerCase() : '';
+        }
+        if (intentReq === 'use_card') return;
+      } catch {}
+
+      // Otherwise treat as add-card flow. Prefer the latest offer from DB.
+      let offer = null;
+      try { offer = await f.getOffer(id); } catch {}
+      let m = offer || pendingMeta.get(id) || null;
+      if (!m) return; // nothing meaningful to add
       const type = (m && m.type) ? String(m.type).toUpperCase() : 'INKOMEN';
       const issuer = (m && m.issuer) || 'Onbekend';
       const payload = (m && m.payload) || {};
       addCardFromSession(id, { type, issuer, payload });
+      try { sessionStorage.setItem('lastAction', 'added'); } catch {}
     });
   });
 }
@@ -398,3 +654,9 @@ window.addEventListener('DOMContentLoaded', () => {
     if (/clear=1/i.test(hash)) { clearWallet(); location.hash = '#/wallet'; }
   } catch {}
 });
+function canonicalType(t) {
+  const s = (t == null ? '' : String(t)).trim().toUpperCase();
+  if (s === 'INKOMENSVERKLARING' || s === 'INCOME' || s === 'INKOMENSCHECK') return 'INKOMEN';
+  if (s === 'PERSON_ID' || s === 'IDENTITEIT' || s === 'ID') return 'PID';
+  return s;
+}

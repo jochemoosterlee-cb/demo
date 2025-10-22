@@ -4,7 +4,7 @@
     {
       "id": "PID-seed",
       "type": "PID",
-      "issuer": "BRP",
+      "issuer": "Gemeente Rotterdam",
       "issuedAt": "2025-01-10",
       "expiresAt": "2026-01-10",
       "payload": {

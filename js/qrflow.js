@@ -44,12 +44,55 @@ export class QrFlow {
     await remove(ref(this.db, `sessions/${qrId}`));
   }
 
+  async setSessionInfo(qrId, { intent, kind, type } = {}) {
+    const { ref, set } = this.api;
+    try { if (kind != null) await set(ref(this.db, `sessions/${qrId}/kind`), kind); } catch {}
+    try { if (intent != null) await set(ref(this.db, `sessions/${qrId}/intent`), intent); } catch {}
+    try { if (type != null) await set(ref(this.db, `sessions/${qrId}/type`), type); } catch {}
+  }
+
   async setMeta(qrId, meta) { return this.setOffer(qrId, meta); }
   async setOffer(qrId, offer) {
     const { ref, set } = this.api;
     const payload = offer && offer.payload ? offer.payload : (offer || {});
     const normalized = { type: offer?.type || '', issuer: offer?.issuer || '', payload, version: offer?.version || 1 };
     await set(ref(this.db, `sessions/${qrId}/offer`), normalized);
+    // Also store quick-identifiers at session root for fast intent detection
+    try {
+      await set(ref(this.db, `sessions/${qrId}/kind`), 'offer');
+      // If no explicit intent provided, treat as issuing a card
+      await set(ref(this.db, `sessions/${qrId}/intent`), offer?.intent || 'issue_card');
+    } catch {}
+  }
+
+  async setRequest(qrId, request) {
+    const { ref, set } = this.api;
+    const normalized = {
+      intent: request?.intent || '',
+      type: request?.type || '',
+      scope: request?.scope || undefined,
+      reason: request?.reason || undefined,
+      version: request?.version || 1,
+    };
+    await set(ref(this.db, `sessions/${qrId}/request`), normalized);
+    // Also store quick-identifiers at session root for fast intent detection
+    try {
+      await set(ref(this.db, `sessions/${qrId}/kind`), 'request');
+      await set(ref(this.db, `sessions/${qrId}/intent`), normalized.intent || '');
+    } catch {}
+  }
+
+  async setShared(qrId, shared) {
+    const { ref, set } = this.api;
+    const payload = shared && shared.payload ? shared.payload : (shared || {});
+    const normalized = { type: shared?.type || '', issuer: shared?.issuer || '', payload, version: shared?.version || 1 };
+    await set(ref(this.db, `sessions/${qrId}/shared`), normalized);
+    // Also write to response for new structure
+    const outcome = shared && shared.error === 'not_found' ? 'not_found' : 'ok';
+    const resp = outcome === 'ok'
+      ? { outcome: 'ok', type: normalized.type, issuer: normalized.issuer, payload: normalized.payload, version: normalized.version }
+      : { outcome: 'not_found', requestedType: (shared && shared.requestedType) || normalized.type || '', version: normalized.version };
+    await set(ref(this.db, `sessions/${qrId}/response`), resp);
   }
 
   async getMeta(qrId) { return this.getOffer(qrId); }
@@ -60,6 +103,71 @@ export class QrFlow {
     if (val) return val;
     snap = await get(ref(this.db, `sessions/${qrId}/meta`));
     val = snap && typeof snap.val === 'function' ? snap.val() : (snap ? snap.val : null);
+    return val;
+  }
+
+  async getRequest(qrId) {
+    const { ref, get } = this.api;
+    const snap = await get(ref(this.db, `sessions/${qrId}/request`));
+    const val = snap && typeof snap.val === 'function' ? snap.val() : (snap ? snap.val : null);
+    return val;
+  }
+
+  async getShared(qrId) {
+    const { ref, get } = this.api;
+    let snap = await get(ref(this.db, `sessions/${qrId}/response`));
+    let val = snap && typeof snap.val === 'function' ? snap.val() : (snap ? snap.val : null);
+    if (val) return val;
+    snap = await get(ref(this.db, `sessions/${qrId}/shared`));
+    val = snap && typeof snap.val === 'function' ? snap.val() : (snap ? snap.val : null);
+    return val;
+  }
+
+  async getIntent(qrId) {
+    const { ref, get } = this.api;
+    try {
+      const snap = await get(ref(this.db, `sessions/${qrId}/intent`));
+      const v = snap && typeof snap.val === 'function' ? snap.val() : (snap ? snap.val : null);
+      return typeof v === 'string' ? v : '';
+    } catch { return ''; }
+  }
+
+  async getKind(qrId) {
+    const { ref, get } = this.api;
+    try {
+      const snap = await get(ref(this.db, `sessions/${qrId}/kind`));
+      const v = snap && typeof snap.val === 'function' ? snap.val() : (snap ? snap.val : null);
+      return typeof v === 'string' ? v : '';
+    } catch { return ''; }
+  }
+
+  async getType(qrId) {
+    const { ref, get } = this.api;
+    try {
+      const snap = await get(ref(this.db, `sessions/${qrId}/type`));
+      const v = snap && typeof snap.val === 'function' ? snap.val() : (snap ? snap.val : null);
+      return typeof v === 'string' ? v : '';
+    } catch { return ''; }
+  }
+
+  async setResponse(qrId, response) {
+    const { ref, set } = this.api;
+    const normalized = {
+      outcome: response?.outcome || 'ok',
+      type: response?.type || '',
+      issuer: response?.issuer || '',
+      payload: response?.payload || {},
+      requestedType: response?.requestedType || undefined,
+      selectedFields: response?.selectedFields || undefined,
+      version: response?.version || 1,
+    };
+    await set(ref(this.db, `sessions/${qrId}/response`), normalized);
+  }
+
+  async getResponse(qrId) {
+    const { ref, get } = this.api;
+    const snap = await get(ref(this.db, `sessions/${qrId}/response`));
+    const val = snap && typeof snap.val === 'function' ? snap.val() : (snap ? snap.val : null);
     return val;
   }
 
