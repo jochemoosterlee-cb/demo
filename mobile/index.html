@@ -4,11 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" type="image/x-icon" href="../favicon.ico">
-  <link rel="apple-touch-icon" href="../img/icon-192.png">
   <link href="https://fonts.googleapis.com/css2?family=Headland+One&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <script src="../js/tailwind_3.4.17.js"></script>
   <script src="../js/html5-qrcode.min.js"></script>
@@ -28,14 +26,7 @@
   <!-- App header -->
   <header class="w-full px-5 pt-6 pb-3 flex items-center justify-between">
     <h1 id="appTitle" class="font-headland text-xl" title="Tip: klik 3x om te resetten">Wallet</h1>
-    <button id="installBtn" class="hidden bg-brandBlue hover:bg-brandBlueHover text-white rounded-md px-3 py-2 text-sm font-inter">Installeer</button>
   </header>
-
-  <div id="iosInstallHint" class="hidden px-5 -mt-3 mb-3">
-    <div class="bg-cardBg border border-gray-200 rounded-xl p-3 font-inter text-sm text-gray-800">
-      Tip: Installeer via het deelmenu → "Zet op beginscherm".
-    </div>
-  </div>
 
   <!-- Views container -->
   <main class="px-5 pb-10">
@@ -117,38 +108,6 @@
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('./sw.js', { scope: './' });
     }
-    // Handle install prompt on Android/Chrome
-    let deferredPrompt = null;
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      deferredPrompt = e;
-      const btn = document.getElementById('installBtn');
-      if (btn) btn.classList.remove('hidden');
-    });
-    const installBtn = document.getElementById('installBtn');
-    if (installBtn) {
-      installBtn.addEventListener('click', async () => {
-        if (!deferredPrompt) return;
-        deferredPrompt.prompt();
-        try { await deferredPrompt.userChoice; } catch {}
-        deferredPrompt = null;
-        installBtn.classList.add('hidden');
-      });
-    }
-    window.addEventListener('appinstalled', () => {
-      deferredPrompt = null;
-      const btn = document.getElementById('installBtn');
-      if (btn) btn.classList.add('hidden');
-    });
-    // Show iOS hint: Safari has no install prompt
-    (function(){
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-      const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
-      if (isIOS && !isStandalone) {
-        const hint = document.getElementById('iosInstallHint');
-        if (hint) hint.classList.remove('hidden');
-      }
-    })();
   </script>
   <!-- Global PIN overlay available across views -->
   <div id="pinOverlay" class="fixed inset-0 bg-brandBg/95 flex items-center justify-center px-6 hidden">
