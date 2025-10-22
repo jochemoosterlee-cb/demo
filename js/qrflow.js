@@ -1,19 +1,54 @@
 export class QrFlow {
   static async init({ databaseURL }) {
     const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js');
-    const { getDatabase, ref, set, onValue, get, child, remove, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js');
+    const { getDatabase, ref, set, onValue, get, child, remove, serverTimestamp, query, orderByChild, endAt, limitToFirst } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js');
     const app = initializeApp({ databaseURL });
     const db = getDatabase(app);
-    return new QrFlow(app, db, { ref, set, onValue, get, child, remove, serverTimestamp });
+    return new QrFlow(app, db, { ref, set, onValue, get, child, remove, serverTimestamp, query, orderByChild, endAt, limitToFirst });
   }
 
   constructor(app, db, api) {
     this.app = app;
     this.db = db;
     this.api = api;
+    this._lastCleanupTs = 0;
+  }
+
+  async _maybeCleanup() {
+    const now = Date.now();
+    // Throttle cleanup to at most once per minute per page session
+    if (now - (this._lastCleanupTs || 0) < 60 * 1000) return;
+    this._lastCleanupTs = now;
+    try { await this.cleanupStaleSessions({ olderThanMs: 10 * 60 * 1000, batchLimit: 100 }); } catch {}
+  }
+
+  async cleanupStaleSessions({ olderThanMs = 10 * 60 * 1000, batchLimit = 100 } = {}) {
+    const { ref, get, remove, query, orderByChild, endAt, limitToFirst } = this.api;
+    const cutoff = Date.now() - Math.max(0, Number(olderThanMs) || 0);
+    const sessionsRef = ref(this.db, 'sessions');
+    const keys = new Set();
+    try {
+      const q1 = query(sessionsRef, orderByChild('expiresAt'), endAt(cutoff), limitToFirst(batchLimit));
+      const s1 = await get(q1);
+      if (s1 && typeof s1.forEach === 'function') {
+        s1.forEach((snap) => { if (snap && snap.key) keys.add(snap.key); });
+      }
+    } catch {}
+    try {
+      const q2 = query(sessionsRef, orderByChild('status/completedAt'), endAt(cutoff), limitToFirst(batchLimit));
+      const s2 = await get(q2);
+      if (s2 && typeof s2.forEach === 'function') {
+        s2.forEach((snap) => { if (snap && snap.key) keys.add(snap.key); });
+      }
+    } catch {}
+    for (const k of keys) {
+      try { await remove(ref(this.db, `sessions/${k}`)); } catch {}
+    }
+    return keys.size;
   }
 
   async createSession(qrId, { ttlMs = 10 * 60 * 1000 } = {}) {
+    await this._maybeCleanup();
     const id = qrId || Date.now().toString();
     const { ref, set, serverTimestamp } = this.api;
     const expiresAt = Date.now() + (Number(ttlMs) || 0);
@@ -28,18 +63,21 @@ export class QrFlow {
   }
 
   async markScanned(qrId) {
+    await this._maybeCleanup();
     const { ref, set, serverTimestamp } = this.api;
     await set(ref(this.db, `sessions/${qrId}/scanned`), true);
     await set(ref(this.db, `sessions/${qrId}/status/scannedAt`), serverTimestamp());
   }
 
   async markCompleted(qrId) {
+    await this._maybeCleanup();
     const { ref, set, serverTimestamp } = this.api;
     await set(ref(this.db, `sessions/${qrId}/completed`), true);
     await set(ref(this.db, `sessions/${qrId}/status/completedAt`), serverTimestamp());
   }
 
   async deleteSession(qrId) {
+    await this._maybeCleanup();
     const { ref, remove } = this.api;
     await remove(ref(this.db, `sessions/${qrId}`));
   }
@@ -53,6 +91,7 @@ export class QrFlow {
 
   async setMeta(qrId, meta) { return this.setOffer(qrId, meta); }
   async setOffer(qrId, offer) {
+    await this._maybeCleanup();
     const { ref, set } = this.api;
     const payload = offer && offer.payload ? offer.payload : (offer || {});
     const normalized = { type: offer?.type || '', issuer: offer?.issuer || '', payload, version: offer?.version || 1 };
@@ -66,6 +105,7 @@ export class QrFlow {
   }
 
   async setRequest(qrId, request) {
+    await this._maybeCleanup();
     const { ref, set } = this.api;
     const normalized = {
       intent: request?.intent || '',
@@ -83,6 +123,7 @@ export class QrFlow {
   }
 
   async setShared(qrId, shared) {
+    await this._maybeCleanup();
     const { ref, set } = this.api;
     const payload = shared && shared.payload ? shared.payload : (shared || {});
     const normalized = { type: shared?.type || '', issuer: shared?.issuer || '', payload, version: shared?.version || 1 };
@@ -97,6 +138,7 @@ export class QrFlow {
 
   async getMeta(qrId) { return this.getOffer(qrId); }
   async getOffer(qrId) {
+    await this._maybeCleanup();
     const { ref, get } = this.api;
     let snap = await get(ref(this.db, `sessions/${qrId}/offer`));
     let val = snap && typeof snap.val === 'function' ? snap.val() : (snap ? snap.val : null);
@@ -107,6 +149,7 @@ export class QrFlow {
   }
 
   async getRequest(qrId) {
+    await this._maybeCleanup();
     const { ref, get } = this.api;
     const snap = await get(ref(this.db, `sessions/${qrId}/request`));
     const val = snap && typeof snap.val === 'function' ? snap.val() : (snap ? snap.val : null);
@@ -114,6 +157,7 @@ export class QrFlow {
   }
 
   async getShared(qrId) {
+    await this._maybeCleanup();
     const { ref, get } = this.api;
     let snap = await get(ref(this.db, `sessions/${qrId}/response`));
     let val = snap && typeof snap.val === 'function' ? snap.val() : (snap ? snap.val : null);
@@ -151,6 +195,7 @@ export class QrFlow {
   }
 
   async setResponse(qrId, response) {
+    await this._maybeCleanup();
     const { ref, set } = this.api;
     const normalized = {
       outcome: response?.outcome || 'ok',
@@ -165,6 +210,7 @@ export class QrFlow {
   }
 
   async getResponse(qrId) {
+    await this._maybeCleanup();
     const { ref, get } = this.api;
     const snap = await get(ref(this.db, `sessions/${qrId}/response`));
     const val = snap && typeof snap.val === 'function' ? snap.val() : (snap ? snap.val : null);

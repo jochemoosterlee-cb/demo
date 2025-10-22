@@ -202,7 +202,7 @@ function renderCards() {
     if (settings.hideSeedPrompt) {
       empty.innerHTML = `
         <p class="font-inter text-sm text-gray-700 mb-3">De wallet is leeg.</p>
-        <p class="font-inter text-xs text-gray-600">Scan een QR of plak een code om een kaartje toe te voegen.</p>`;
+        <p class="font-inter text-xs text-gray-600">Scan een QR of plak een code om gegevens toe te voegen.</p>`;
       list.appendChild(empty);
     } else {
       empty.innerHTML = `
@@ -385,7 +385,7 @@ function renderShareView() {
   if (choices) { choices.innerHTML = ''; choices.classList.add('hidden'); }
   err.textContent = '';
   if (!pendingShare || !Array.isArray(pendingShare.candidates) || pendingShare.candidates.length === 0) {
-    info.textContent = 'Geen passend kaartje in de wallet gevonden voor dit verzoek.';
+    info.textContent = 'Geen passende gegevens in de wallet gevonden voor dit verzoek.';
     try { btn.style.display = 'none'; } catch {}
     if (cancel) { cancel.textContent = 'Verder'; cancel.style.display = ''; }
     // Notify portal that nothing was found (once)
@@ -415,7 +415,7 @@ function renderShareView() {
   const renderSelected = () => {
     const card = cards[pendingShare.selectedIndex];
     const title = labelMap[card.type] || card.type;
-    info.textContent = `Kies het kaartje om te delen. Geselecteerd: ${title}`;
+    info.textContent = `Kies de gegevens om te delen. Geselecteerd: ${title}`;
     details.innerHTML = '';
     details.appendChild(renderDetailsFromSchema(card.type, card.payload || {}));
   };
@@ -534,7 +534,7 @@ async function onRouteChange() {
       if (el) {
         if (last === 'shared') el.textContent = 'Gegevens gedeeld';
         else if (last === 'shared_none') el.textContent = 'Niet gedeeld';
-        else el.textContent = 'Kaartje toegevoegd';
+        else el.textContent = 'Gegevens toegevoegd';
       }
       if (icon) {
         const success = (last === 'shared' || last === 'added');

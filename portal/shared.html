@@ -109,7 +109,7 @@
         try { setTimeout(async () => { try { await f.deleteSession(id); } catch {} }, 300); } catch {}
       } else if ((shared && shared.outcome === 'not_found') || shared.error === 'not_found') {
         const req = (shared.requestedType || '').toUpperCase();
-        const human = names[req] || req || 'kaartje';
+        const human = names[req] || req || 'gegevens';
         const msg = document.createElement('div');
         msg.className = 'font-inter text-base text-gray-800';
         msg.textContent = `De wallet heeft geen ${human} gevonden om te delen.`;
@@ -119,7 +119,7 @@
       } else {
         const head = document.createElement('div');
         head.className = 'mb-3';
-        const name = names[(shared.type||'').toUpperCase()] || (shared.type || 'Kaartje');
+        const name = names[(shared.type||'').toUpperCase()] || (shared.type || 'Gegevens');
         head.innerHTML = `<div class="font-headland text-xl">${name}</div><div class="font-inter text-sm text-gray-700">Ontvangen</div>`;
         container.innerHTML = '';
         container.appendChild(head);
