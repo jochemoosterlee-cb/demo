@@ -125,7 +125,7 @@ async function startScanner(el) {
       const backBtn = overlay?.querySelector('#pinBack');
       const err = overlay?.querySelector('#pinError');
       if (overlay && dots && keys) {
-        overlay.classList.remove('hidden');
+        const showOverlay = () => { try { overlay.style.display = ''; overlay.classList.remove('hidden'); } catch {} }; const hideOverlay = () => { try { overlay.classList.add('hidden'); overlay.style.display = 'none'; } catch {} }; showOverlay();
         let value = '';
         const PIN = (el.dataset.pinValue || '12345').toString();
         const renderDots = () => {
@@ -462,7 +462,7 @@ async function initScanner(el) {
         const backBtn = overlay?.querySelector('#pinBack');
         const err = overlay?.querySelector('#pinError');
         if (overlay && dots && keys) {
-          overlay.classList.remove('hidden');
+          const showOverlay = () => { try { overlay.style.display = ''; overlay.classList.remove('hidden'); } catch {} }; const hideOverlay = () => { try { overlay.classList.add('hidden'); overlay.style.display = 'none'; } catch {} }; showOverlay();
           let value = '';
           const PIN = (el.dataset.pinValue || '12345').toString();
           const renderDots = () => {
@@ -502,7 +502,7 @@ async function initScanner(el) {
         });
           if (backBtn) { backBtn.onclick = () => { clearErr(); value = value.slice(0,-1); renderDots(); }; }
           const cancelBtn2 = overlay.querySelector('#pinCancel');
-          if (cancelBtn2) { cancelBtn2.onclick = () => { try { overlay.classList.add('hidden'); } catch {} }; }
+          if (cancelBtn2) { cancelBtn2.onclick = () => { try { overlay.classList.add('hidden'); overlay.style.display='none'; } catch {} }; }
           window.addEventListener('keydown', (e) => {
             if (/^[0-9]$/.test(e.key)) { if (value.length < PIN.length) { value += e.key; renderDots(); if (value.length===PIN.length) trySubmit(); } e.preventDefault(); }
             else if (e.key === 'Backspace') { value = value.slice(0,-1); renderDots(); e.preventDefault(); }
