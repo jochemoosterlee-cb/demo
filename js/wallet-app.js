@@ -302,21 +302,69 @@ function currentRoute() { const h = location.hash.replace(/^#\/?/, '').trim(); r
 let doneTimer = null;
 async function onRouteChange() {
   const route = currentRoute();
+  console.log('Route changed to:', route); // Debug
   const scanView = document.querySelector('[data-view="scan"]');
-  if (route !== 'scan') {  // Simplified: always attempt stop if not in scan
-    console.log('Attempting to stop scanner for route:', route);  // Optional logging
+  if (route !== 'scan') {
+    console.log('Stopping scanner for non-scan route...'); // Debug
     const scanner = scanView?.querySelector('[data-qrflow="scanner"]');
-    const ctrl = scanner?._qrflowCtrl;
-    if (ctrl && typeof ctrl.stop === 'function') {
-      try { await ctrl.stop(); } catch {}
-      try { await ctrl.clear(); } catch {}
-      delete scanner._qrflowCtrl;  // Optional: Clean up reference to prevent reuse
-      console.log('Scanner stopped and cleared for route:', route);  // Optional logging
+    if (scanner) {
+      const ctrl = scanner._qrflowCtrl;
+      if (ctrl && typeof ctrl.stop === 'function') {
+        try {
+          await ctrl.stop();
+          console.log('Scanner stopped successfully.');
+        } catch (e) {
+          console.error('Failed to stop scanner:', e);
+        }
+        try {
+          await ctrl.clear();
+          console.log('Scanner cleared successfully.');
+        } catch (e) {
+          console.error('Failed to clear scanner:', e);
+        }
+        delete scanner._qrflowCtrl; // Verwijder controller referentie
+      } else {
+        console.warn('No scanner controller found, attempting manual cleanup...');
+      }
+      // Extra: Handmatig video-stream opruimen
+      const video = scanView?.querySelector('video');
+      if (video && video.srcObject) {
+        console.log('Manually stopping video stream...');
+        video.srcObject.getTracks().forEach(track => {
+          try {
+            track.stop();
+            console.log('Video track stopped:', track.kind);
+          } catch (e) {
+            console.error('Failed to stop track:', e);
+          }
+        });
+        video.srcObject = null;
+        video.pause();
+      }
+      // Extra: Container leegmaken
+      const container = scanView?.querySelector('#reader');
+      if (container) {
+        container.innerHTML = '';
+        console.log('Scanner container cleared.');
+      }
     }
   }
   showView(route);
-  if (doneTimer) { try { clearTimeout(doneTimer); } catch {} doneTimer = null; }
-  if (route === 'done') { doneTimer = setTimeout(() => { try { window.location.replace('#/wallet'); } catch { window.location.hash = '#/wallet'; } }, 1000); }
+  if (doneTimer) {
+    try {
+      clearTimeout(doneTimer);
+    } catch {}
+    doneTimer = null;
+  }
+  if (route === 'done') {
+    doneTimer = setTimeout(() => {
+      try {
+        window.location.replace('#/wallet');
+      } catch {
+        window.location.hash = '#/wallet';
+      }
+    }, 1000);
+  }
 }
 
 function attachScanHandlers() {

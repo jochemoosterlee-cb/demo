@@ -79,24 +79,27 @@ async function startScanner(el) {
   let lastId = '';
   const preferredDeviceId = el.dataset.preferredDeviceId || '';
 
-  // Single handler used by both camera decode and manual input
   const handleDecoded = async (decodedText) => {
     lastId = decodedText || '';
-    // Validate session exists in DB before proceeding
     const errorEl = document.querySelector(el.dataset.errorTarget || '#scanError');
     if (!(await f.sessionExists(lastId))) {
-      if (errorEl) { errorEl.textContent = 'Ongeldige of verlopen code. Toon een nieuwe QR en probeer opnieuw.'; }
+      if (errorEl) {
+        errorEl.textContent = 'Ongeldige of verlopen code. Toon een nieuwe QR en probeer opnieuw.';
+      }
       dispatch(el, 'qrflow:error', { error: new Error('Session not found') });
       return;
     }
     el.dataset.sessionId = lastId;
-    try { sessionStorage.setItem('qrId', lastId); } catch {}
-    try { await f.markScanned(lastId); } catch {}
+    try {
+      sessionStorage.setItem('qrId', lastId);
+    } catch {}
+    try {
+      await f.markScanned(lastId);
+    } catch {}
     dispatch(el, 'qrflow:scanned', { id: lastId });
     const nextUrl = el.dataset.nextUrl || '';
     const requirePin = boolAttr(el.dataset.requirePin, false);
     if (requirePin) {
-      // PIN overlay flow
       const overlay = document.querySelector(el.dataset.pinOverlay || '#pinOverlay');
       const dots = overlay?.querySelectorAll('#pinDots > span');
       const keys = overlay?.querySelectorAll('.pin-key');
@@ -113,104 +116,201 @@ async function startScanner(el) {
               : 'w-3 h-3 rounded-full border border-textDark/40 inline-block';
           });
         };
-        const clearErr = () => { if (err) { err.textContent = ''; err.classList.add('invisible'); err.classList.remove('hidden'); } };
-        const showErr = (m) => { if (err) { err.textContent = m; err.classList.remove('invisible'); } };
-        const trySubmit = async () => {
-          if (value.length !== PIN.length) return;
-          if (value !== PIN) { value=''; renderDots(); showErr('Onjuiste PIN. Probeer opnieuw.'); return; }
-          clearErr();
-          try {
-            await f.markCompleted(lastId);
-            dispatch(el, 'qrflow:completed', { id: lastId });
-            try { overlay.classList.add('hidden'); } catch {}
-            if (el.dataset.deleteOnComplete) { try { await f.deleteSession(lastId); } catch {} }
-            if (nextUrl) window.location.href = nextUrl;
-          } catch (e) {
-            showErr('Er ging iets mis. Probeer opnieuw.');
+        const clearErr = () => {
+          if (err) {
+            err.textContent = '';
+            err.classList.add('invisible');
+            err.classList.remove('hidden');
           }
         };
-        // Ensure we don't accumulate multiple handlers across sessions
-        keys.forEach((b) => { b.onclick = null; });
-        keys.forEach((b) => {
-          b.onclick = () => {
-            clearErr();
-            const d = b.getAttribute('data-digit');
-            if (!d) return;
-            if (value.length >= PIN.length) return;
-            value += d;
+        const showErr = (m) => {
+          if (err) {
+            err.textContent = m;
+            err.classList.remove('invisible');
+          }
+        };
+        const onKey = (e) => {
+          const t = e.currentTarget;
+          if (!(t instanceof Element)) return;
+          const digit = t.dataset.digit;
+          if (!digit) return;
+          clearErr();
+          if (value.length < 5) {
+            value += digit;
             renderDots();
-            if (value.length === PIN.length) trySubmit();
-          };
-        });
-        if (backBtn) { backBtn.onclick = () => { clearErr(); value = value.slice(0,-1); renderDots(); }; }
-        const cancelBtn = overlay.querySelector('#pinCancel');
-        if (cancelBtn) { cancelBtn.onclick = () => { try { overlay.classList.add('hidden'); } catch {} }; }
-        window.addEventListener('keydown', (e) => {
-          if (/^[0-9]$/.test(e.key)) { if (value.length < PIN.length) { value += e.key; renderDots(); if (value.length===PIN.length) trySubmit(); } e.preventDefault(); }
-          else if (e.key === 'Backspace') { value = value.slice(0,-1); renderDots(); e.preventDefault(); }
-        }, { once: true });
-        renderDots();
-        return;
-      }
-    }
-    // If page wants to navigate immediately after scan, do so now.
-    if (nextUrl && boolAttr(el.dataset.navigateOnScan, false)) {
-      window.location.href = nextUrl;
-      return;
-    }
-    // If page wants to complete immediately, mark and navigate.
-    if (boolAttr(el.dataset.completeImmediate, false)) {
-      try { await f.markCompleted(lastId); } catch {}
-      dispatch(el, 'qrflow:completed', { id: lastId });
-      if (el.dataset.deleteOnComplete) {
-        try { await f.deleteSession(lastId); } catch {}
-      }
-      if (nextUrl) window.location.href = nextUrl;
-      return;
-    }
-    // Otherwise, wait for portal to mark completed and then navigate.
-    try {
-      f.onCompleted(lastId, async () => {
-        dispatch(el, 'qrflow:completed', { id: lastId });
-        if (el.dataset.deleteOnComplete) {
-          try { await f.deleteSession(lastId); } catch {}
+            if (value.length === 5) {
+              if (value === PIN) {
+                try { f.markCompleted(lastId); } catch {}
+                dispatch(el, 'qrflow:completed', { id: lastId });
+                if (boolAttr(el.dataset.deleteOnComplete, false)) {
+                  try { f.deleteSession(lastId); } catch {}
+                }
+                if (nextUrl) window.location.href = nextUrl;
+              } else {
+                showErr('Onjuiste PIN. Probeer opnieuw.');
+                value = '';
+                renderDots();
+              }
+            }
+          }
+        };
+        const onBack = () => {
+          clearErr();
+          value = value.slice(0, -1);
+          renderDots();
+        };
+        keys.forEach(k => k.removeEventListener('click', onKey));
+        keys.forEach(k => k.addEventListener('click', onKey));
+        if (backBtn) {
+          backBtn.removeEventListener('click', onBack);
+          backBtn.addEventListener('click', onBack);
         }
-        if (nextUrl) window.location.href = nextUrl;
-      });
-    } catch {}
+      }
+    }
   };
 
-  const controller = await f.startScanner({
-    elementId: el.id || (el.getAttribute('id') || 'qrflow_scanner_' + Date.now()),
-    preferBackCamera: preferBack,
-    preferredDeviceId,
-    onDecode: async (decodedText) => {
-      await handleDecoded(decodedText);
-    }
-  });
+  const cameras = await Html5Qrcode.getCameras();
+  if (!cameras || cameras.length === 0) throw new Error('No cameras found');
 
-  el._qrflowCtrl = controller;
-  try { dispatch(el, 'qrflow:camera-started', { deviceId: controller.currentDeviceId }); } catch {}
+  const isBack = (c) => /back|rear|environment/i.test(c.label || '');
+  const backList = cameras.filter(isBack).map(c => c.id);
+  const otherList = cameras.filter(c => !isBack(c)).map(c => c.id);
+  let order = preferBack ? [...backList, ...otherList] : [...otherList, ...backList];
+  if (preferredDeviceId && order.includes(preferredDeviceId)) {
+    order = [preferredDeviceId, ...order.filter((x) => x !== preferredDeviceId)];
+  }
 
-  // Optional manual input support to bypass camera
-  const inputSel = el.dataset.manualInput || '';
-  const btnSel = el.dataset.manualButton || '';
-  const submitOnEnter = boolAttr(el.dataset.manualSubmitOnEnter, true);
-  if (inputSel) {
-    const input = document.querySelector(inputSel);
-    const doSubmit = async () => {
-      const val = (input?.value || '').trim();
-      if (!val) return;
-      try { await handleDecoded(val); } catch (e) { dispatch(el, 'qrflow:error', { error: e }); }
-    };
-    if (submitOnEnter && input) {
-      input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); doSubmit(); } });
+  const instance = new Html5Qrcode(el.id);
+  let resolved = false;
+  let lastError = null;
+  let currentIndex = -1;
+
+  const tryStartAt = async (idx) => {
+    const id = order[idx];
+    console.log('Starting camera with deviceId:', id);
+    try {
+      await instance.start(
+        { deviceId: { exact: id } },
+        { fps: 10, qrbox: 250, aspectRatio: 1.0 },
+        async (decodedText) => {
+          if (resolved) return;
+          resolved = true;
+          try {
+            await handleDecoded(decodedText);
+          } finally {
+            try {
+              await instance.stop();
+              console.log('Scanner stopped after decode.');
+            } catch (e) {
+              console.error('Failed to stop after decode:', e);
+            }
+            try {
+              await instance.clear();
+              console.log('Scanner cleared after decode.');
+            } catch (e) {
+              console.error('Failed to clear after decode:', e);
+            }
+          }
+        },
+        () => {}
+      );
+      await new Promise(r => setTimeout(r, 500));
+      const video = el.querySelector('video');
+      if (video) {
+        video.setAttribute('playsinline', '');
+        video.setAttribute('autoplay', '');
+        video.muted = true;
+        const p = video.play?.();
+        if (p && typeof p.catch === 'function') {
+          p.catch(e => console.error('Video play failed:', e));
+        }
+      }
+      const playing = video && video.readyState >= 2 && (video.videoWidth || 0) > 0;
+      if (!playing) {
+        console.error('Camera started but no video frames.');
+        throw new Error('Camera started but no frames');
+      }
+      console.log('Camera started successfully, video element found:', !!video);
+      currentIndex = idx;
+    } catch (e) {
+      console.error('Failed to start camera:', e);
+      throw e;
     }
-    if (btnSel) {
-      const btn = document.querySelector(btnSel);
-      btn?.addEventListener('click', (e) => { e.preventDefault(); doSubmit(); });
+  };
+
+  for (let i = 0; i < order.length; i++) {
+    try {
+      await tryStartAt(i);
+      const controller = {
+        async stop() {
+          try {
+            await instance.stop();
+            console.log('Controller stop called.');
+          } catch (e) {
+            console.error('Failed to stop scanner:', e);
+          }
+          const video = el.querySelector('video');
+          if (video && video.srcObject) {
+            video.srcObject.getTracks().forEach(track => {
+              try {
+                track.stop();
+                console.log('Video track stopped:', track.kind);
+              } catch (e) {
+                console.error('Failed to stop track:', e);
+              }
+            });
+            video.srcObject = null;
+            video.pause();
+          }
+          el.innerHTML = '';
+          console.log('Scanner container cleared in stop.');
+        },
+        async clear() {
+          try {
+            await instance.clear();
+            console.log('Controller clear called.');
+          } catch (e) {
+            console.error('Failed to clear scanner:', e);
+          }
+          el.innerHTML = '';
+        },
+        async switchToNext() {
+          const next = (currentIndex + 1) % order.length;
+          try {
+            await instance.stop();
+            await instance.clear();
+          } catch {}
+          await tryStartAt(next);
+        },
+        async switchToDevice(deviceId) {
+          const idx = order.indexOf(deviceId);
+          if (idx === -1) return;
+          try {
+            await instance.stop();
+            await instance.clear();
+          } catch {}
+          await tryStartAt(idx);
+        },
+        instance,
+        get currentDeviceId() {
+          return order[currentIndex];
+        },
+        get cameras() {
+          return order.slice();
+        },
+        get devices() {
+          return cameras.slice();
+        },
+      };
+      el._qrflowCtrl = controller;
+      return controller;
+    } catch (e) {
+      lastError = e;
+      continue;
     }
   }
+
+  throw lastError || new Error('Unable to start any available camera');
 }
 
 async function initScanner(el) {
