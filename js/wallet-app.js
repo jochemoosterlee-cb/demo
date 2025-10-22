@@ -25,7 +25,7 @@ let state = loadState();
 let settings = loadSettings();
 const pendingMeta = new Map();
 let uiSchema = {};
-let pendingShare = null; // { id, meta, card }
+let pendingShare = null; // { id, meta, candidates: Card[], selectedIndex: number }
 
 async function loadJson(url) {
   try {
@@ -373,14 +373,18 @@ async function confirmWithPin(pinValue = '12345') {
 function renderShareView() {
   const info = document.getElementById('shareInfo');
   const details = document.getElementById('shareDetails');
+  const choices = document.getElementById('shareChoices');
   const err = document.getElementById('shareError');
   const btn = document.getElementById('shareConfirm');
   const cancel = document.getElementById('shareCancel');
   if (!info || !details || !btn || !err) return;
+  // Reset button state and handler each time we render this view
+  try { btn.disabled = false; btn.onclick = null; } catch {}
   info.textContent = '';
   details.innerHTML = '';
+  if (choices) { choices.innerHTML = ''; choices.classList.add('hidden'); }
   err.textContent = '';
-  if (!pendingShare || !pendingShare.card) {
+  if (!pendingShare || !Array.isArray(pendingShare.candidates) || pendingShare.candidates.length === 0) {
     info.textContent = 'Geen passend kaartje in de wallet gevonden voor dit verzoek.';
     try { btn.style.display = 'none'; } catch {}
     if (cancel) { cancel.textContent = 'Verder'; cancel.style.display = ''; }
@@ -402,12 +406,43 @@ function renderShareView() {
     }
     return;
   }
-  const { meta, card } = pendingShare;
+  const { meta } = pendingShare;
+  const cards = pendingShare.candidates || [];
+  let sel = typeof pendingShare.selectedIndex === 'number' ? pendingShare.selectedIndex : 0;
+  if (sel < 0 || sel >= cards.length) sel = 0;
+  pendingShare.selectedIndex = sel;
   const labelMap = { PID: 'PID', INKOMEN: 'Inkomensverklaring' };
-  const title = labelMap[card.type] || card.type;
-  info.textContent = `Je staat op het punt je ${title} te delen met het portaal.`;
-  const block = renderDetailsFromSchema(card.type, card.payload || {});
-  details.appendChild(block);
+  const renderSelected = () => {
+    const card = cards[pendingShare.selectedIndex];
+    const title = labelMap[card.type] || card.type;
+    info.textContent = `Kies het kaartje om te delen. Geselecteerd: ${title}`;
+    details.innerHTML = '';
+    details.appendChild(renderDetailsFromSchema(card.type, card.payload || {}));
+  };
+  if (choices) {
+    choices.innerHTML = '';
+    const wrap = document.createElement('div');
+    wrap.className = 'flex flex-col gap-2';
+    cards.forEach((c, i) => {
+      const row = document.createElement('label');
+      row.className = 'flex items-center gap-2 font-inter text-sm bg-white/70 border border-gray-200 rounded-md px-3 py-2 cursor-pointer';
+      const input = document.createElement('input');
+      input.type = 'radio';
+      input.name = 'shareCardSel';
+      input.value = String(i);
+      input.checked = i === pendingShare.selectedIndex;
+      input.addEventListener('change', () => { pendingShare.selectedIndex = i; renderSelected(); });
+      const txt = document.createElement('div');
+      const yr = (c.payload && (c.payload.nl_bld_bri_year || c.payload.year)) ? ` • ${c.payload.nl_bld_bri_year || c.payload.year}` : '';
+      txt.textContent = `${labelMap[c.type] || c.type}${yr}`;
+      row.appendChild(input);
+      row.appendChild(txt);
+      wrap.appendChild(row);
+    });
+    choices.appendChild(wrap);
+    if (cards.length > 1) { choices.classList.remove('hidden'); }
+  }
+  renderSelected();
   try { btn.style.display = ''; } catch {}
   if (cancel) { cancel.textContent = 'Annuleren'; cancel.style.display = ''; }
   btn.onclick = async () => {
@@ -416,6 +451,7 @@ function renderShareView() {
     if (!ok) { btn.disabled = false; return; }
     try {
       const f = await flow();
+      const card = cards[pendingShare.selectedIndex];
       await f.setShared(pendingShare.id, { type: card.type, issuer: card.issuer, payload: card.payload, version: 1 });
       await f.setResponse(pendingShare.id, { outcome: 'ok', type: card.type, issuer: card.issuer, payload: card.payload, version: 1 });
       await f.markCompleted(pendingShare.id);
@@ -586,17 +622,15 @@ function attachScanHandlers() {
             if (!meta) meta = m;
           } catch {}
           const normalize = (s) => (s == null ? '' : String(s).toUpperCase().trim());
-          let found = state.cards.find(c => normalize(c.type) === reqType) || null;
-          // Fallbacks: detect by known payload keys if type missing or no match
+          let candidates = state.cards.filter(c => normalize(c.type) === reqType);
           const hasIncome = (c) => c && c.payload && (('nl_bld_bri_year' in (c.payload||{})) || ('nl_bld_bri_income' in (c.payload||{})));
-          if (!found && (reqType === 'INKOMEN' || reqType === '')) {
-            found = state.cards.find(hasIncome) || found;
+          if ((reqType === 'INKOMEN' || reqType === '') && candidates.length === 0) {
+            candidates = state.cards.filter(hasIncome);
           }
-          if (!found && reqType === '' && state.cards.length === 1) {
-            // As a last resort, if there is exactly one card, offer it
-            found = state.cards[0];
+          if (reqType === '' && candidates.length === 0 && state.cards.length === 1) {
+            candidates = [state.cards[0]];
           }
-          pendingShare = { id, meta, card: found };
+          pendingShare = { id, meta, candidates, selectedIndex: 0 };
           try { window.location.hash = '#/share'; } catch {}
           renderShareView();
         }
