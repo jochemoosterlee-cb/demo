@@ -615,7 +615,7 @@ async function initScanner(el) {
       });
       try { observer.observe(document.body, { attributes: true, subtree: true, attributeFilter: ['class', 'style'] }); } catch {}
       const onHash = async () => { await startWhenVisible(); };
-      window.addEventListener('hashchange', onHash, { once: true });
+      window.addEventListener('hashchange', onHash);
     }
   } else if (startBtnSel) {
     const btn = document.querySelector(startBtnSel);
@@ -670,4 +670,5 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 });
+
 
