@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="nl" class="overflow-x-hidden">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  
   <link rel="icon" type="image/x-icon" href="../favicon.ico">
   <link href="https://fonts.googleapis.com/css2?family=Headland+One&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../css/output.css">
@@ -13,14 +13,15 @@
     tailwind.config = {
       theme: {
         extend: {
-          fontFamily: { inter: ['Inter','sans-serif'], headland: ['"Headland One"','serif'] },
-          colors: { brandBg:'#FAF5EB', textDark:'#222', cardBg:'#F7EFDD', brandBlue:'#163563', brandBlueHover:'#003d8c' }
+          fontFamily: { inter: ['Inter', 'sans-serif'], headland: ['"Headland One"', 'serif'] },
+          colors: { brandBg: '#FAF5EB', textDark: '#222', cardBg: '#F7EFDD', brandBlue: '#163563', brandBlueHover: '#003d8c' }
         }
       }
     };
   </script>
   <title>Portal | Gedeelde gegevens</title>
 </head>
+
 <body class="overflow-x-hidden bg-brandBg text-textDark flex items-center justify-center min-h-screen px-8">
   <div class="max-w-3xl w-full bg-cardBg rounded-2xl p-10 flex flex-col items-center gap-6">
     <h1 id="shareTitle" class="font-headland text-3xl font-medium">Gedeelde gegevens</h1>
@@ -30,79 +31,72 @@
 
   <script type="module">
     import { QrFlow } from '../js/qrflow.js';
-
     const params = new URLSearchParams(location.search);
     const typeParam = (params.get('type') || '').toUpperCase();
     const title = document.getElementById('shareTitle');
     const names = { PID: 'PID', INKOMEN: 'Inkomensverklaring' };
-    if (typeParam && title) title.textContent = `${names[typeParam]||typeParam} gedeeld`;
-
+    if (typeParam && title) title.textContent = `${names[typeParam] || typeParam} gedeeld`;
     async function loadJson(url) {
-      try { const res = await fetch(url, { cache: 'no-cache' }); if (!res.ok) throw new Error('http '+res.status); return await res.json(); } catch { return null; }
+      try { const res = await fetch(url, { cache: 'no-cache' }); if (!res.ok) throw new Error('http ' + res.status); return await res.json(); } catch { return null; }
     }
     const uiSchema = await loadJson('./data/card-ui.json') || {};
-
-    function formatDate(ts){ if(!ts) return ''; try{const d=new Date(ts);const dd=String(d.getDate()).padStart(2,'0');const mm=String(d.getMonth()+1).padStart(2,'0');const yyyy=d.getFullYear();return `${dd}-${mm}-${yyyy}`;}catch{return '';} }
-    function formatCurrencyEUR(val){ const n = typeof val==='number'? val : parseFloat(String(val).replace(/[^0-9.,-]/g,'').replace(',','.')); if(!isFinite(n)) return ''; try{return new Intl.NumberFormat('nl-NL',{style:'currency',currency:'EUR',maximumFractionDigits:0}).format(n);}catch{return `€ ${Math.round(n).toLocaleString('nl-NL')}`;} }
-
-    function renderDetailsFromSchema(type, payload){
+    function formatDate(ts) { if (!ts) return ''; try { const d = new Date(ts); const dd = String(d.getDate()).padStart(2, '0'); const mm = String(d.getMonth() + 1).padStart(2, '0'); const yyyy = d.getFullYear(); return `${dd}-${mm}-${yyyy}`; } catch { return ''; } }
+    function formatCurrencyEUR(val) { const n = typeof val === 'number' ? val : parseFloat(String(val).replace(/[^0-9.,-]/g, '').replace(',', '.')); if (!isFinite(n)) return ''; try { return new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n); } catch { return `€ ${Math.round(n).toLocaleString('nl-NL')}`; } }
+    function renderDetailsFromSchema(type, payload) {
       const schema = uiSchema && uiSchema[type];
       const frag = document.createElement('div');
       frag.className = 'grid grid-cols-1 gap-1 font-inter text-sm';
       if (!schema) {
-        Object.entries(payload||{}).forEach(([k,v])=>{
+        Object.entries(payload || {}).forEach(([k, v]) => {
           const row = document.createElement('div');
-          row.innerHTML = `<strong>${k}</strong>: ${Array.isArray(v)? v.join(', ') : (typeof v==='object'? JSON.stringify(v) : String(v))}`;
+          row.innerHTML = `<strong>${k}</strong>: ${Array.isArray(v) ? v.join(', ') : (typeof v === 'object' ? JSON.stringify(v) : String(v))}`;
           frag.appendChild(row);
         });
         return frag;
       }
-      const order = schema.order || Object.keys(payload||{});
+      const order = schema.order || Object.keys(payload || {});
       const labels = schema.labels || {};
       const format = schema.format || {};
-      order.forEach((key)=>{
+      order.forEach((key) => {
         const raw = payload ? payload[key] : undefined;
         let val = raw;
         const fmt = format[key];
-        if(fmt==='date'){
-          if(typeof raw==='string'){ try{ val = formatDate(Date.parse(raw)); }catch{ val = raw; } }
-          else if(typeof raw==='number'){ val = formatDate(raw); }
-        } else if(fmt==='boolean'){
+        if (fmt === 'date') {
+          if (typeof raw === 'string') { try { val = formatDate(Date.parse(raw)); } catch { val = raw; } }
+          else if (typeof raw === 'number') { val = formatDate(raw); }
+        } else if (fmt === 'boolean') {
           val = raw ? 'ja' : 'nee';
-        } else if(fmt==='eur'){
+        } else if (fmt === 'eur') {
           val = formatCurrencyEUR(raw);
-        } else if(Array.isArray(raw)){
+        } else if (Array.isArray(raw)) {
           val = raw.join(', ');
-        } else if(typeof raw==='object' && raw!=null){
+        } else if (typeof raw === 'object' && raw != null) {
           val = JSON.stringify(raw);
         }
         const row = document.createElement('div');
-        row.innerHTML = `<strong>${labels[key]||key}</strong>: ${val ?? ''}`;
+        row.innerHTML = `<strong>${labels[key] || key}</strong>: ${val ?? ''}`;
         frag.appendChild(row);
       });
       return frag;
     }
-
     const container = document.getElementById('shareContainer');
     const showWaiting = () => {
       if (!container) return;
       container.innerHTML = '<div class="font-inter text-base text-gray-800">Wachten op toestemming vanuit de wallet…</div>';
     };
     const f = await QrFlow.init({ databaseURL: 'https://demoapp-6cc2a-default-rtdb.europe-west1.firebasedatabase.app/' });
-    // Prefer id from URL for robustness; fallback to sessionStorage
     let id = (new URLSearchParams(location.search).get('id') || '').toString();
-    if (!id) { try { id = sessionStorage.getItem('qrId') || ''; } catch {} }
+    if (!id) { try { id = sessionStorage.getItem('qrId') || ''; } catch { } }
     if (!id) {
       container.textContent = 'Geen sessie gevonden.';
     } else {
-      // Wait up to 30s for consent/share
       showWaiting();
       let shared = null;
       const start = Date.now();
       while (!shared && (Date.now() - start) < 30000) {
-        try { shared = await f.getShared(id); } catch {}
+        try { shared = await f.getShared(id); } catch { }
         if (shared) break;
-        await new Promise(r=>setTimeout(r,300));
+        await new Promise(r => setTimeout(r, 300));
       }
       if (!shared) {
         container.innerHTML = '<div class="font-inter text-base text-gray-800">Er is geen toestemming ontvangen. Het verzoek is verlopen.</div>';
@@ -114,18 +108,17 @@
         msg.textContent = `De wallet heeft geen ${human} gevonden om te delen.`;
         container.innerHTML = '';
         container.appendChild(msg);
-        
       } else {
         const head = document.createElement('div');
         head.className = 'mb-3';
-        const name = names[(shared.type||'').toUpperCase()] || (shared.type || 'Gegevens');
+        const name = names[(shared.type || '').toUpperCase()] || (shared.type || 'Gegevens');
         head.innerHTML = `<div class="font-headland text-xl">${name}</div><div class="font-inter text-sm text-gray-700">Ontvangen</div>`;
         container.innerHTML = '';
         container.appendChild(head);
-        container.appendChild(renderDetailsFromSchema((shared.type||'').toUpperCase(), shared.payload||{}));
-        
+        container.appendChild(renderDetailsFromSchema((shared.type || '').toUpperCase(), shared.payload || {}));
       }
     }
   </script>
 </body>
+
 </html>

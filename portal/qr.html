@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="nl" class="overflow-x-hidden">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,12 +12,11 @@
   <script src="../js/qrcode.min.js"></script>
   <title>Portal | QR</title>
 </head>
+
 <body class="overflow-x-hidden bg-brandBg text-textDark flex items-center justify-center min-h-screen px-8">
   <div class="max-w-4xl w-full bg-cardBg rounded-2xl p-12 flex flex-col items-center gap-10">
     <h1 id="qrTitle" class="font-headland text-3xl font-medium">Scan de QR-code</h1>
-    <div id="qrcode" class="p-4 bg-white flex justify-center items-center rounded-lg"
-         data-qrflow="presenter" data-wait="completed" data-next-url="done.html"
-         data-size="220" data-color-dark="#333333" data-color-light="#FFFFFF"></div>
+    <div id="qrcode" class="p-4 bg-white flex justify-center items-center rounded-lg" data-qrflow="presenter" data-wait="completed" data-next-url="done.html" data-size="220" data-color-dark="#333333" data-color-light="#FFFFFF"></div>
     <div class="w-full max-w-md bg-white/60 rounded-lg p-4">
       <label class="block font-inter text-sm mb-2" for="qrCodeText">Sessiecode (voor handmatig plakken in de wallet):</label>
       <div class="flex gap-2">
@@ -44,7 +44,7 @@
       if (input) input.value = id;
     });
     copyBtn?.addEventListener('click', async () => {
-      try { await navigator.clipboard.writeText(input.value); copyBtn.textContent = 'Gekopieerd'; setTimeout(()=>copyBtn.textContent='Kopieer', 1200); } catch {}
+      try { await navigator.clipboard.writeText(input.value); copyBtn.textContent = 'Gekopieerd'; setTimeout(() => copyBtn.textContent = 'Kopieer', 1200); } catch { }
     });
   </script>
   <script type="module">
@@ -59,17 +59,14 @@
     }
     const qrEl2 = document.getElementById('qrcode');
     if (qrEl2) {
-      // Ensure the presenter navigates to done.html with type param
       qrEl2.dataset.nextUrl = `done.html?type=${encodeURIComponent(type)}`;
     }
 
     async function getSamplePayload(type, params) {
-      // Load templates from portal side
       let templates = {};
-      try { templates = await (await fetch('./data/card-templates.json', { cache: 'no-cache' })).json(); } catch {}
+      try { templates = await (await fetch('./data/card-templates.json', { cache: 'no-cache' })).json(); } catch { }
       const tpl = templates[type] || {};
       let base = JSON.parse(JSON.stringify(tpl.payload || {}));
-      // Apply simple overrides from query params for quick demos
       if (type === 'PID') {
         const v = (params.get('variant') || '').toLowerCase();
         if (v === 'minor' || params.get('minor') === '1') { base.birth_date = '2010-05-01'; base.age_over_18 = false; }
@@ -93,21 +90,19 @@
       });
     }
 
-    // Load UI labels/schema to render friendly field names
-    // Load portal-specific UI schema first; fall back to mobile's schema
     let uiSchema = {};
     try { uiSchema = await (await fetch('./data/card-ui.json', { cache: 'no-cache' })).json(); }
-    catch {}
+    catch { }
     if (!uiSchema || Object.keys(uiSchema).length === 0) {
-      try { uiSchema = await (await fetch('../mobile/data/card-ui.json', { cache: 'no-cache' })).json(); } catch {}
+      try { uiSchema = await (await fetch('../mobile/data/card-ui.json', { cache: 'no-cache' })).json(); } catch { }
     }
     const payload = await getSamplePayload(type, params);
-    const schema = uiSchema[type] || { order: Object.keys(payload||{}), labels: {}, format: {} };
+    const schema = uiSchema[type] || { order: Object.keys(payload || {}), labels: {}, format: {} };
     const form = document.getElementById('payloadForm');
     function renderForm() {
       if (!form) return;
       form.innerHTML = '';
-      const order = Array.isArray(schema.order) && schema.order.length ? schema.order : Object.keys(payload||{});
+      const order = Array.isArray(schema.order) && schema.order.length ? schema.order : Object.keys(payload || {});
       const labels = schema.labels || {};
       const format = schema.format || {};
       order.forEach((key) => {
@@ -118,19 +113,19 @@
         const lab = document.createElement('label');
         lab.className = 'font-inter text-sm';
         lab.textContent = label;
-        lab.setAttribute('for', 'fld_'+key);
+        lab.setAttribute('for', 'fld_' + key);
         let input;
         if (fmt === 'boolean') {
           input = document.createElement('input');
           input.type = 'checkbox';
-          input.id = 'fld_'+key;
+          input.id = 'fld_' + key;
           input.checked = !!payload[key];
           input.addEventListener('change', () => { payload[key] = input.checked; pushMeta(); });
         } else if (fmt === 'date') {
           input = document.createElement('input');
           input.type = 'date';
-          input.id = 'fld_'+key;
-          try { input.value = (payload[key]||'').slice(0,10); } catch { input.value = ''; }
+          input.id = 'fld_' + key;
+          try { input.value = (payload[key] || '').slice(0, 10); } catch { input.value = ''; }
           input.className = 'bg-white border border-gray-300 rounded-md px-3 py-2 font-inter text-sm';
           input.addEventListener('input', () => { payload[key] = input.value; pushMetaDebounced(); });
         } else if (fmt === 'eur') {
@@ -138,23 +133,22 @@
           input.type = 'number';
           input.step = '1';
           input.min = '0';
-          input.id = 'fld_'+key;
+          input.id = 'fld_' + key;
           input.value = payload[key] ?? '';
           input.className = 'bg-white border border-gray-300 rounded-md px-3 py-2 font-inter text-sm';
-          input.addEventListener('input', () => { const v = Number(input.value||'0'); payload[key] = isFinite(v)? v : 0; pushMetaDebounced(); });
+          input.addEventListener('input', () => { const v = Number(input.value || '0'); payload[key] = isFinite(v) ? v : 0; pushMetaDebounced(); });
         } else {
           input = document.createElement('input');
           input.type = 'text';
-          input.id = 'fld_'+key;
+          input.id = 'fld_' + key;
           const val = Array.isArray(payload[key]) ? payload[key].join(', ') : (payload[key] ?? '');
           input.value = val;
           input.placeholder = label;
           input.className = 'bg-white border border-gray-300 rounded-md px-3 py-2 font-inter text-sm';
           input.addEventListener('input', () => {
             const raw = input.value;
-            // Treat arrays as comma-separated list
             if (Array.isArray(payload[key])) {
-              payload[key] = raw.split(',').map(s=>s.trim()).filter(s=>s);
+              payload[key] = raw.split(',').map(s => s.trim()).filter(s => s);
             } else {
               payload[key] = raw;
             }
@@ -167,30 +161,30 @@
       });
     }
     renderForm();
-    // Collapsible payload editor
     const payloadEditor = document.getElementById('payloadEditor');
     const toggleBtn = document.getElementById('togglePayload');
-    function setOpen(open){
-      if(!payloadEditor || !toggleBtn) return;
-      if(open){ payloadEditor.classList.remove('hidden'); toggleBtn.textContent='Verberg gegevens'; }
-      else { payloadEditor.classList.add('hidden'); toggleBtn.textContent='Gegevens aanpassen'; }
+    function setOpen(open) {
+      if (!payloadEditor || !toggleBtn) return;
+      if (open) { payloadEditor.classList.remove('hidden'); toggleBtn.textContent = 'Verberg gegevens'; }
+      else { payloadEditor.classList.add('hidden'); toggleBtn.textContent = 'Gegevens aanpassen'; }
     }
     setOpen(false);
-    toggleBtn?.addEventListener('click', (e)=>{ e.preventDefault(); const isHidden = payloadEditor.classList.contains('hidden'); setOpen(isHidden); });
+    toggleBtn?.addEventListener('click', (e) => { e.preventDefault(); const isHidden = payloadEditor.classList.contains('hidden'); setOpen(isHidden); });
     let f;
-    async function ensureFlow(){ if(!f) f = await QrFlow.init({ databaseURL: 'https://demoapp-6cc2a-default-rtdb.europe-west1.firebasedatabase.app/' }); }
+    async function ensureFlow() { if (!f) f = await QrFlow.init({ databaseURL: 'https://demoapp-6cc2a-default-rtdb.europe-west1.firebasedatabase.app/' }); }
     let currentId = '';
     async function pushMeta() {
       await ensureFlow(); if (!currentId) return;
-      try { await f.setMeta(currentId, { type, issuer, payload }); } catch {}
+      try { await f.setMeta(currentId, { type, issuer, payload }); } catch { }
     }
     let tmr; const pushMetaDebounced = () => { clearTimeout(tmr); tmr = setTimeout(pushMeta, 300); };
     qrEl2?.addEventListener('qrflow:session', async (e) => {
       await ensureFlow();
       currentId = (qrEl2.getAttribute('data-session-id') || (e.detail && e.detail.id) || '').toString();
-      try { await f.setOffer(currentId, { type, issuer, payload, version: 1 }); } catch {}
+      try { await f.setOffer(currentId, { type, issuer, payload, version: 1 }); } catch { }
     });
   </script>
-  
+
 </body>
+
 </html>
