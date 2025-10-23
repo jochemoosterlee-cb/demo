@@ -562,7 +562,7 @@ async function onRouteChange() {
       const err = document.getElementById('scanError');
       if (err) err.textContent = '';
     } catch {}
-    try { const st = document.getElementById('scanStatus'); if (st) st.classList.add('hidden'); } catch {}
+    
     try { const ov = document.getElementById('scanOverlay'); if (ov) ov.classList.add('hidden'); } catch {}
     try { const cont = document.getElementById('reader'); if (cont) cont.style.opacity = ''; } catch {}
     try { sessionStorage.removeItem('lastAction'); } catch {}
@@ -586,13 +586,12 @@ function attachScanHandlers() {
   const scanners = Array.from(document.querySelectorAll('[data-qrflow="scanner"]'));
   if (scanners.length === 0) return;
   scanners.forEach((scanner) => {
-    const statusEl = document.getElementById('scanStatus');
     const container = document.getElementById('reader');
     const overlayEl = document.getElementById('scanOverlay');
     scanner.addEventListener('qrflow:scanned', async (e) => {
       const id = (scanner.getAttribute('data-session-id') || (e.detail && e.detail.id) || '').toString();
       if (!id) return;
-      try { if (statusEl) statusEl.classList.remove('hidden'); } catch {}
+      
       try { if (overlayEl) overlayEl.classList.remove('hidden'); } catch {}
       try { if (container) container.style.opacity = '0.5'; } catch {}
       try {
@@ -646,12 +645,12 @@ function attachScanHandlers() {
       } catch {}
     });
     scanner.addEventListener('qrflow:completed', async (e) => {
-      try { if (statusEl) statusEl.classList.add('hidden'); } catch {}
+      
       try { if (overlayEl) overlayEl.classList.add('hidden'); } catch {}
       try { if (container) container.style.opacity = ''; } catch {}
     });
     scanner.addEventListener('qrflow:error', async (e) => {
-      try { if (statusEl) statusEl.classList.add('hidden'); } catch {}
+      
       try { if (overlayEl) overlayEl.classList.add('hidden'); } catch {}
       try { if (container) container.style.opacity = ''; } catch {}
     });
