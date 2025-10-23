@@ -537,7 +537,7 @@ async function onRouteChange() {
         else el.textContent = 'Gegevens toegevoegd';
       }
       if (icon) {
-        const success = (last === 'shared' || last === 'added');
+        const success = last !== 'shared_none';
         icon.style.display = success ? '' : 'none';
       }
     } catch {}
