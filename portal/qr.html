@@ -5,37 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  
   <link rel="icon" type="image/x-icon" href="../favicon.ico">
   <link href="https://fonts.googleapis.com/css2?family=Headland+One&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <script src="../js/tailwind_3.4.17.js"></script>
+  <link rel="stylesheet" href="../css/output.css">
   <script src="../js/qrcode.min.js"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: {
-            inter: ['Inter', 'sans-serif'],
-            headland: ['\"Headland One\"', 'serif'],
-          },
-          colors: {
-            brandBg: '#FAF5EB',
-            textDark: '#222',
-            cardBg: '#F7EFDD',
-            brandBlue: '#163563',
-            brandBlueHover: '#003d8c',
-          },
-        },
-      },
-    };
-  </script>
   <title>Portal | QR</title>
 </head>
 <body class="overflow-x-hidden bg-brandBg text-textDark flex items-center justify-center min-h-screen px-8">
   <div class="max-w-4xl w-full bg-cardBg rounded-2xl p-12 flex flex-col items-center gap-10">
     <h1 id="qrTitle" class="font-headland text-3xl font-medium">Scan de QR-code</h1>
     <div id="qrcode" class="p-4 bg-white flex justify-center items-center rounded-lg"
-         data-qrflow="presenter" data-wait="completed" data-next-url="done.html" data-delete-on-complete="true"
+         data-qrflow="presenter" data-wait="completed" data-next-url="done.html"
          data-size="160" data-color-dark="#333333" data-color-light="#FFFFFF"></div>
     <div class="w-full max-w-md bg-white/60 rounded-lg p-4">
       <label class="block font-inter text-sm mb-2" for="qrCodeText">Sessiecode (voor handmatig plakken in de wallet):</label>

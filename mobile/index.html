@@ -8,18 +8,8 @@
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" type="image/x-icon" href="../favicon.ico">
   <link href="https://fonts.googleapis.com/css2?family=Headland+One&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <script src="../js/tailwind_3.4.17.js"></script>
+  <link rel="stylesheet" href="../css/output.css">
   <script src="../js/html5-qrcode.min.js"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: { inter: ['Inter','sans-serif'], headland: ['\"Headland One\"','serif'] },
-          colors: { brandBg:'#FAF5EB', textDark:'#222', cardBg:'#F7EFDD', brandBlue:'#163563', brandBlueHover:'#003d8c' }
-        }
-      }
-    }
-  </script>
   <title>Mobiel | Wallet</title>
 </head>
 <body class="overflow-x-hidden bg-brandBg text-textDark min-h-screen">
@@ -38,7 +28,7 @@
         <h2 class="font-headland text-xl font-medium">Scan de QR-code</h2>
         <div id="reader" class="mt-6 rounded-xl overflow-hidden"
              style="width: min(480px, 92vw); aspect-ratio: 1 / 1; background:#000;"
-             data-qrflow="scanner" data-autostart="true" data-require-pin="true" data-next-url="#/done" data-switch-button="#switchCamera" data-delete-on-complete="true"
+             data-qrflow="scanner" data-autostart="true" data-require-pin="true" data-next-url="#/done" data-switch-button="#switchCamera"
              data-manual-input="#manualCode" data-manual-button="#manualSubmit" data-manual-submit-on-enter="true"></div>
         <div class="flex items-center justify-center mt-3">
           <button id="switchCamera" class="font-inter text-sm text-brandBlue underline">Andere camera</button>
@@ -110,7 +100,7 @@
     }
   </script>
   <!-- Global PIN overlay available across views -->
-  <div id="pinOverlay" class="fixed inset-0 bg-brandBg/95 flex items-center justify-center px-6 hidden">
+  <div id="pinOverlay" class="fixed inset-0 bg-brandBg flex items-center justify-center px-6 hidden">
     <div class="max-w-sm w-full bg-cardBg rounded-2xl p-8 flex flex-col items-center gap-6">
       <h3 class="font-headland text-2xl font-medium">Bevestig met PIN</h3>
       <div id="pinDots" class="flex gap-3 mt-2" aria-label="PIN-status">

@@ -1,10 +1,10 @@
 export class QrFlow {
   static async init({ databaseURL }) {
     const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js');
-    const { getDatabase, ref, set, onValue, get, child, remove, serverTimestamp, query, orderByChild, endAt, limitToFirst } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js');
+    const { getDatabase, ref, set, onValue, get, child, remove, serverTimestamp, query, orderByChild, orderByKey, endAt, limitToFirst } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js');
     const app = initializeApp({ databaseURL });
     const db = getDatabase(app);
-    return new QrFlow(app, db, { ref, set, onValue, get, child, remove, serverTimestamp, query, orderByChild, endAt, limitToFirst });
+    return new QrFlow(app, db, { ref, set, onValue, get, child, remove, serverTimestamp, query, orderByChild, orderByKey, endAt, limitToFirst });
   }
 
   constructor(app, db, api) {
@@ -23,10 +23,11 @@ export class QrFlow {
   }
 
   async cleanupStaleSessions({ olderThanMs = 10 * 60 * 1000, batchLimit = 100 } = {}) {
-    const { ref, get, remove, query, orderByChild, endAt, limitToFirst } = this.api;
+    const { ref, get, remove, query, orderByChild, orderByKey, endAt, limitToFirst } = this.api;
     const cutoff = Date.now() - Math.max(0, Number(olderThanMs) || 0);
     const sessionsRef = ref(this.db, 'sessions');
     const keys = new Set();
+    // 1) Prefer explicit timestamps if present
     try {
       const q1 = query(sessionsRef, orderByChild('expiresAt'), endAt(cutoff), limitToFirst(batchLimit));
       const s1 = await get(q1);
@@ -39,6 +40,20 @@ export class QrFlow {
       const s2 = await get(q2);
       if (s2 && typeof s2.forEach === 'function') {
         s2.forEach((snap) => { if (snap && snap.key) keys.add(snap.key); });
+      }
+    } catch {}
+    // 2) Fallback: use session id as timestamp (string millis), delete any key <= cutoff
+    try {
+      const cutoffKey = String(cutoff);
+      const q3 = query(sessionsRef, orderByKey(), endAt(cutoffKey), limitToFirst(batchLimit));
+      const s3 = await get(q3);
+      if (s3 && typeof s3.forEach === 'function') {
+        s3.forEach((snap) => {
+          const k = snap && snap.key ? snap.key : null;
+          if (!k) return;
+          const asNum = Number(k);
+          if (Number.isFinite(asNum) && asNum <= cutoff) keys.add(k);
+        });
       }
     } catch {}
     for (const k of keys) {

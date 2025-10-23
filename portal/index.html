@@ -5,34 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  
   <link rel="icon" type="image/x-icon" href="../favicon.ico">
   <link href="https://fonts.googleapis.com/css2?family=Headland+One&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <script src="../js/tailwind_3.4.17.js"></script>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: {
-            inter: ['Inter', 'sans-serif'],
-            headland: ['"Headland One"', 'serif'],
-          },
-          colors: {
-            brandBg: '#FAF5EB',
-            textDark: '#222',
-            cardBg: '#F7EFDD',
-            brandBlue: '#163563',
-            brandBlueHover: '#003d8c',
-          },
-        },
-      },
-    };
-  </script>
+  <link rel="stylesheet" href="../css/output.css">
   <title>Portal | Kies gegeven</title>
-  
   </head>
 <body class="overflow-x-hidden bg-brandBg text-textDark flex items-center justify-center min-h-screen px-8">
-  <div class="max-w-4xl w-full bg-cardBg rounded-2xl p-10 flex flex-col items-center gap-8 shadow-sm">
+  <div class="max-w-4xl w-full bg-cardBg rounded-2xl p-10 flex flex-col items-center gap-8">
     <h1 class="font-headland text-3xl font-medium">Kies wat je wilt doen</h1>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
       <!-- Toevoegen aan wallet -->
