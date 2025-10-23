@@ -270,9 +270,19 @@ async function startScanner(el) {
         video.pause();
       }
       await new Promise((r) => setTimeout(r, 100));
+      // Use a slightly higher fps and a larger, dynamic qrbox for faster detection,
+      // and enable the native BarcodeDetector when available.
+      const rect = el.getBoundingClientRect();
+      const side = Math.max(230, Math.min(360, Math.floor(Math.min(rect.width || 300, rect.height || rect.width || 300) * 0.85)));
+      const config = {
+        fps: 15,
+        qrbox: side,
+        aspectRatio: 1.0,
+        experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+      };
       await instance.start(
         { deviceId: { exact: id } },
-        { fps: 10, qrbox: 250, aspectRatio: 1.0 },
+        config,
         async (decodedText) => {
           if (resolved) return;
           resolved = true;
