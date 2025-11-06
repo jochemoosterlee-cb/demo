@@ -30,5 +30,18 @@
     "format": {
       "nl_bld_bri_income": "eur"
     }
+  },
+  "NVM_LIDMAATSCHAP": {
+    "order": [
+      "given_name",
+      "family_name",
+      "membership_number"
+    ],
+    "labels": {
+      "given_name": "Voornaam",
+      "family_name": "Achternaam",
+      "membership_number": "Lidmaatschapsnummer"
+    },
+    "format": {}
   }
 }

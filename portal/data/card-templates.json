@@ -13,5 +13,13 @@
   "INKOMEN": {
     "issuer": "Belastingdienst",
     "payload": { "nl_bld_bri_year": "2024", "nl_bld_bri_income": 62000 }
+  },
+  "NVM_LIDMAATSCHAP": {
+    "issuer": "NVM",
+    "payload": {
+      "given_name": "Jan",
+      "family_name": "Jansen",
+      "membership_number": "NVM-123456"
+    }
   }
 }

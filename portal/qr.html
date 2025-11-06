@@ -51,10 +51,10 @@
     import { QrFlow } from '../js/qrflow.js';
     const params = new URLSearchParams(location.search);
     const type = (params.get('type') || 'INKOMEN').toUpperCase();
-    const issuer = type === 'PID' ? 'Gemeente Rotterdam' : 'Belastingdienst';
+    let issuer = type === 'PID' ? 'Gemeente Rotterdam' : 'Belastingdienst';
     const title = document.getElementById('qrTitle');
     if (title) {
-      const map = { PID: 'PID', INKOMEN: 'Inkomensverklaring' };
+      const map = { PID: 'PID', INKOMEN: 'Inkomensverklaring', NVM_LIDMAATSCHAP: 'NVM Lidmaatschap' };
       title.textContent = `Scan de QR-code (${map[type] || type})`;
     }
     const qrEl2 = document.getElementById('qrcode');
@@ -62,20 +62,20 @@
       qrEl2.dataset.nextUrl = `done.html?type=${encodeURIComponent(type)}`;
     }
 
-    async function getSamplePayload(type, params) {
+    async function getTemplate(type, params) {
       let templates = {};
       try { templates = await (await fetch('./data/card-templates.json', { cache: 'no-cache' })).json(); } catch { }
       const tpl = templates[type] || {};
-      let base = JSON.parse(JSON.stringify(tpl.payload || {}));
+      let payload = JSON.parse(JSON.stringify(tpl.payload || {}));
       if (type === 'PID') {
         const v = (params.get('variant') || '').toLowerCase();
-        if (v === 'minor' || params.get('minor') === '1') { base.birth_date = '2010-05-01'; base.age_over_18 = false; }
-        if (params.get('bsn')) base.bsn = params.get('bsn');
+        if (v === 'minor' || params.get('minor') === '1') { payload.birth_date = '2010-05-01'; payload.age_over_18 = false; }
+        if (params.get('bsn')) payload.bsn = params.get('bsn');
       } else if (type === 'INKOMEN') {
-        const year = params.get('year'); if (year) base.nl_bld_bri_year = year;
-        const income = params.get('income'); if (income) base.nl_bld_bri_income = Number(income);
+        const year = params.get('year'); if (year) payload.nl_bld_bri_year = year;
+        const income = params.get('income'); if (income) payload.nl_bld_bri_income = Number(income);
       }
-      return base;
+      return { issuer: tpl.issuer, payload };
     }
 
     function renderPayloadPreview(payload) {
@@ -96,7 +96,9 @@
     if (!uiSchema || Object.keys(uiSchema).length === 0) {
       try { uiSchema = await (await fetch('../mobile/data/card-ui.json', { cache: 'no-cache' })).json(); } catch { }
     }
-    const payload = await getSamplePayload(type, params);
+    const tpl = await getTemplate(type, params);
+    const payload = tpl.payload || {};
+    issuer = tpl.issuer || issuer;
     const schema = uiSchema[type] || { order: Object.keys(payload || {}), labels: {}, format: {} };
     const form = document.getElementById('payloadForm');
     function renderForm() {
