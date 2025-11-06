@@ -33,9 +33,17 @@
     import { QrFlow } from '../js/qrflow.js';
     const params = new URLSearchParams(location.search);
     const typeParam = (params.get('type') || '').toUpperCase();
+    const portal = (params.get('portal') || '').toUpperCase();
     const title = document.getElementById('shareTitle');
+    const backLink = document.querySelector('a[href="index.html"]');
     const names = { PID: 'PID', INKOMEN: 'Inkomensverklaring', NVM_LIDMAATSCHAP: 'NVM Lidmaatschap' };
-    if (typeParam && title) title.textContent = `${names[typeParam] || typeParam} gedeeld`;
+    if (typeParam && title) {
+      if (portal === 'KADASTER') {
+        title.textContent = 'Inloggen bij Kadaster';
+      } else {
+        title.textContent = `${names[typeParam] || typeParam} gedeeld`;
+      }
+    }
     async function loadJson(url) {
       try { const res = await fetch(url, { cache: 'no-cache' }); if (!res.ok) throw new Error('http ' + res.status); return await res.json(); } catch { return null; }
     }
@@ -105,17 +113,45 @@
         const human = names[req] || req || 'gegevens';
         const msg = document.createElement('div');
         msg.className = 'font-inter text-base text-gray-800';
-        msg.textContent = `De wallet heeft geen ${human} gevonden om te delen.`;
+        if (portal === 'KADASTER') {
+          if (title) title.textContent = 'Inloggen bij Kadaster';
+          msg.textContent = 'De wallet heeft geen NVM Lidmaatschap gevonden. Inloggen bij Kadaster is niet gelukt.';
+        } else {
+          msg.textContent = `De wallet heeft geen ${human} gevonden om te delen.`;
+        }
         container.innerHTML = '';
         container.appendChild(msg);
       } else {
-        const head = document.createElement('div');
-        head.className = 'mb-3';
-        const name = names[(shared.type || '').toUpperCase()] || (shared.type || 'Gegevens');
-        head.innerHTML = `<div class="font-headland text-xl">${name}</div><div class="font-inter text-sm text-gray-700">Ontvangen</div>`;
         container.innerHTML = '';
-        container.appendChild(head);
-        container.appendChild(renderDetailsFromSchema((shared.type || '').toUpperCase(), shared.payload || {}));
+        if (portal === 'KADASTER') {
+          if (backLink) backLink.textContent = 'Verder';
+          if (title) title.textContent = 'Ingelogd bij Kadaster';
+          const payload = shared.payload || {};
+          const fullName = `${payload.given_name || ''} ${payload.family_name || ''}`.trim();
+          const member = payload.membership_number || '';
+          const wrap = document.createElement('div');
+          wrap.className = 'flex flex-col gap-2';
+          const msg = document.createElement('div');
+          msg.className = 'font-inter text-base text-gray-800';
+          msg.appendChild(document.createTextNode('Je bent ingelogd bij het Kadaster als '));
+          const strong = document.createElement('strong');
+          strong.textContent = fullName || 'onbekend';
+          msg.appendChild(strong);
+          msg.appendChild(document.createTextNode('.'));
+          const nr = document.createElement('div');
+          nr.className = 'font-inter text-base text-gray-800';
+          nr.innerHTML = `<strong>Lidmaatschapsnummer</strong>: ${member || '-'}`;
+          wrap.appendChild(msg);
+          wrap.appendChild(nr);
+          container.appendChild(wrap);
+        } else {
+          const head = document.createElement('div');
+          head.className = 'mb-3';
+          const name = names[(shared.type || '').toUpperCase()] || (shared.type || 'Gegevens');
+          head.innerHTML = `<div class="font-headland text-xl">${name}</div><div class="font-inter text-sm text-gray-700">Ontvangen</div>`;
+          container.appendChild(head);
+          container.appendChild(renderDetailsFromSchema((shared.type || '').toUpperCase(), shared.payload || {}));
+        }
       }
     }
   </script>

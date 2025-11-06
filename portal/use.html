@@ -45,6 +45,7 @@
     import { QrFlow } from '../js/qrflow.js';
     const params = new URLSearchParams(location.search);
     const type = (params.get('type') || 'INKOMEN').toUpperCase();
+    const portal = (params.get('portal') || '').toUpperCase();
     const title = document.getElementById('qrTitle');
     const map = { PID: 'PID', INKOMEN: 'Inkomensverklaring', NVM_LIDMAATSCHAP: 'NVM Lidmaatschap' };
     if (title) title.textContent = `Scan de QR-code (gebruik ${map[type] || type})`;
@@ -53,7 +54,8 @@
 
     const qrEl2 = document.getElementById('qrcode');
     if (qrEl2) {
-      qrEl2.dataset.nextUrl = `shared.html?type=${encodeURIComponent(type)}`;
+      const portalPart = portal ? `&portal=${encodeURIComponent(portal)}` : '';
+      qrEl2.dataset.nextUrl = `shared.html?type=${encodeURIComponent(type)}${portalPart}`;
     }
 
     let f;
@@ -63,7 +65,12 @@
       if (!id) return;
       await ensureFlow();
       // Update nextUrl to include id as query param for robust navigation
-      try { if (qrEl2) qrEl2.dataset.nextUrl = `shared.html?type=${encodeURIComponent(type)}&id=${encodeURIComponent(id)}`; } catch {}
+      try {
+        if (qrEl2) {
+          const portalPart = portal ? `&portal=${encodeURIComponent(portal)}` : '';
+          qrEl2.dataset.nextUrl = `shared.html?type=${encodeURIComponent(type)}&id=${encodeURIComponent(id)}${portalPart}`;
+        }
+      } catch {}
       // Persist both request payload and root markers including type for robust client detection
       try { await f.setRequest(id, { intent: 'use_card', type, version: 1 }); } catch {}
       try { await f.setSessionInfo(id, { intent: 'use_card', kind: 'request', type }); } catch {}
