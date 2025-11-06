@@ -50,7 +50,9 @@
   <script type="module">
     import { QrFlow } from '../js/qrflow.js';
     const params = new URLSearchParams(location.search);
-    const type = (params.get('type') || 'INKOMEN').toUpperCase();
+    const normalizeType = (s) => (s == null ? '' : String(s)).trim().toUpperCase().replace(/[\s-]+/g, '_');
+    const typeRaw = params.get('type') || 'INKOMEN';
+    const type = normalizeType(typeRaw);
     const defaultIssuerMap = { PID: 'Gemeente Rotterdam', INKOMEN: 'Belastingdienst', NVM_LIDMAATSCHAP: 'NVM' };
     let issuer = defaultIssuerMap[type] || 'Onbekend';
     const title = document.getElementById('qrTitle');
@@ -66,7 +68,11 @@
     async function getTemplate(type, params) {
       let templates = {};
       try { templates = await (await fetch('./data/card-templates.json', { cache: 'no-cache' })).json(); } catch { }
-      const tpl = templates[type] || {};
+      let tpl = templates[type] || {};
+      if ((!tpl || Object.keys(tpl).length === 0) && type === 'NVM_LIDMAATSCHAP') {
+        // Be tolerant to space instead of underscore keys
+        tpl = templates['NVM LIDMAATSCHAP'] || {};
+      }
       let payload = JSON.parse(JSON.stringify(tpl.payload || {}));
       if (type === 'PID') {
         const v = (params.get('variant') || '').toLowerCase();
