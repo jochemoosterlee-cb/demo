@@ -1,10 +1,10 @@
 {
   "PID": {
-    "issuer": "Gemeente Rotterdam",
+    "issuer": "Gemeente Den Haag",
     "payload": {
-      "given_name": "Jan",
-      "family_name": "Jansen",
-      "birth_date": "1985-03-12",
+      "given_name": "Remco",
+      "family_name": "van Wijk",
+      "birth_date": "1980-06-24",
       "age_over_18": true,
       "nationality": ["NL"],
       "bsn": "123456789"
@@ -14,11 +14,11 @@
     "issuer": "Belastingdienst",
     "payload": { "nl_bld_bri_year": "2024", "nl_bld_bri_income": 62000 }
   },
-  "NVM_LIDMAATSCHAP": {
+  "NVM LIDMAATSCHAP": {
     "issuer": "NVM",
     "payload": {
-      "given_name": "Jan",
-      "family_name": "Jansen",
+      "given_name": "Remco",
+      "family_name": "van Wijk",
       "membership_number": "NVM-123456"
     }
   }
