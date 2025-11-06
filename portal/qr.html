@@ -51,15 +51,10 @@
     import { QrFlow } from '../js/qrflow.js';
     const params = new URLSearchParams(location.search);
     const normalizeType = (s) => (s == null ? '' : String(s)).trim().toUpperCase().replace(/[\s-]+/g, '_');
-    const typeRaw = params.get('type') || 'INKOMEN';
-    const type = normalizeType(typeRaw);
-    const defaultIssuerMap = { PID: 'Gemeente Rotterdam', INKOMEN: 'Belastingdienst', NVM_LIDMAATSCHAP: 'NVM' };
-    let issuer = defaultIssuerMap[type] || 'Onbekend';
+    const typeParam = params.get('type');
+    let type = normalizeType(typeParam || '');
+    let issuer = 'Onbekend';
     const title = document.getElementById('qrTitle');
-    if (title) {
-      const map = { PID: 'PID', INKOMEN: 'Inkomensverklaring', NVM_LIDMAATSCHAP: 'NVM Lidmaatschap' };
-      title.textContent = `Scan de QR-code (${map[type] || type})`;
-    }
     const qrEl2 = document.getElementById('qrcode');
     if (qrEl2) {
       qrEl2.dataset.nextUrl = `done.html?type=${encodeURIComponent(type)}`;
@@ -68,21 +63,17 @@
     async function getTemplate(type, params) {
       let templates = {};
       try { templates = await (await fetch('./data/card-templates.json', { cache: 'no-cache' })).json(); } catch { }
-      let tpl = templates[type] || {};
-      if ((!tpl || Object.keys(tpl).length === 0) && type === 'NVM_LIDMAATSCHAP') {
-        // Be tolerant to space instead of underscore keys
-        tpl = templates['NVM LIDMAATSCHAP'] || {};
-      }
-      let payload = JSON.parse(JSON.stringify(tpl.payload || {}));
-      if (type === 'PID') {
-        const v = (params.get('variant') || '').toLowerCase();
-        if (v === 'minor' || params.get('minor') === '1') { payload.birth_date = '2010-05-01'; payload.age_over_18 = false; }
-        if (params.get('bsn')) payload.bsn = params.get('bsn');
-      } else if (type === 'INKOMEN') {
-        const year = params.get('year'); if (year) payload.nl_bld_bri_year = year;
-        const income = params.get('income'); if (income) payload.nl_bld_bri_income = Number(income);
-      }
-      return { issuer: tpl.issuer, payload };
+      const tryKeys = (t) => {
+        const k = String(t || '').toUpperCase();
+        const variants = [k, k.replace(/_/g, ' '), k.replace(/[\s-]+/g, '_')];
+        for (const v of variants) { if (templates[v]) return templates[v]; }
+        // case-insensitive search
+        const found = Object.keys(templates || {}).find(key => String(key).toUpperCase() === k);
+        return found ? templates[found] : {};
+      };
+      const tpl = tryKeys(type);
+      const payload = JSON.parse(JSON.stringify((tpl && tpl.payload) || {}));
+      return { issuer: tpl && tpl.issuer, payload };
     }
 
     function renderPayloadPreview(payload) {
@@ -103,6 +94,13 @@
     if (!uiSchema || Object.keys(uiSchema).length === 0) {
       try { uiSchema = await (await fetch('../mobile/data/card-ui.json', { cache: 'no-cache' })).json(); } catch { }
     }
+    if (!type) {
+      const tpl = await (async () => { try { return await (await fetch('./data/card-templates.json', { cache: 'no-cache' })).json(); } catch { return {}; } })();
+      const firstKey = Object.keys(tpl || {})[0] || Object.keys(uiSchema || {})[0] || '';
+      type = normalizeType(firstKey);
+    }
+    const titleFor = (t) => { const k = String(t||'').toUpperCase(); const s = uiSchema[k] || uiSchema[String(k).replace(/_/g, ' ')]; return (s && s.title) ? s.title : k; };
+    if (title) { title.textContent = `Scan de QR-code (${titleFor(type)})`; }
     const tpl = await getTemplate(type, params);
     const payload = tpl.payload || {};
     issuer = tpl.issuer || issuer;

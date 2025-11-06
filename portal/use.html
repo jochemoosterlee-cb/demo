@@ -44,12 +44,15 @@
   <script type="module">
     import { QrFlow } from '../js/qrflow.js';
     const params = new URLSearchParams(location.search);
-    const type = (params.get('type') || 'INKOMEN').toUpperCase();
+    async function loadJson(u){ try { const r = await fetch(u,{cache:'no-cache'}); if(!r.ok) throw new Error(); return await r.json(); } catch { return null; } }
+    const ui = await loadJson('./data/card-ui.json') || {};
+    const rawType = params.get('type') || Object.keys(ui || {})[0] || '';
+    const type = String(rawType).toUpperCase();
     const title = document.getElementById('qrTitle');
-    const map = { PID: 'PID', INKOMEN: 'Inkomensverklaring', NVM_LIDMAATSCHAP: 'NVM Lidmaatschap' };
-    if (title) title.textContent = `Scan de QR-code (gebruik ${map[type] || type})`;
+    const titleFor = (t) => { const k = String(t||'').toUpperCase(); const s = ui[k] || ui[String(k).replace(/_/g,' ')]; return (s && s.title) ? s.title : k; };
+    if (title) title.textContent = `Scan de QR-code (gebruik ${titleFor(type)})`;
     const subTop = document.getElementById('qrSubtitleTop');
-    if (subTop) subTop.textContent = `Vraag aan de wallet om de ${map[type] || type} te delen.`;
+    if (subTop) subTop.textContent = `Vraag aan de wallet om de ${titleFor(type)} te delen.`;
 
     const qrEl2 = document.getElementById('qrcode');
     if (qrEl2) {

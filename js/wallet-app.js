@@ -37,7 +37,8 @@ async function loadJson(url) {
 
 
 function addCardFromSession(id, metaOverride) {
-  const meta = metaOverride || { type: 'INKOMEN', issuer: 'Belastingdienst', payload: {} };
+  const firstSchemaType = (() => { try { const keys = Object.keys(uiSchema || {}); return (keys && keys[0]) ? String(keys[0]).toUpperCase() : 'GENERIC'; } catch { return 'GENERIC'; } })();
+  const meta = metaOverride || { type: firstSchemaType, issuer: 'Onbekend', payload: {} };
   const cType = canonicalType(meta.type || '');
   const now = Date.now();
   const oneYear = 365 * 24 * 60 * 60 * 1000;
@@ -125,28 +126,7 @@ function migrateState() {
       if (!c || !c.payload) return;
       // Normalize type values for robustness
       c.type = canonicalType(c.type || '');
-      if (c.type === 'PID') {
-        const p = c.payload;
-        if (p.name && !p.given_name && !p.family_name) {
-          const parts = String(p.name).trim().split(/\s+/);
-          if (parts.length > 1) {
-            p.given_name = parts.slice(0, -1).join(' ');
-            p.family_name = parts[parts.length - 1];
-          } else {
-            p.given_name = parts[0];
-          }
-        }
-        if (p.birth && !p.birth_date) p.birth_date = p.birth;
-        if (typeof p.age_over_18 === 'undefined') {
-          try {
-            const ts = Date.parse(p.birth_date || p.birth || '');
-            if (!isNaN(ts)) {
-              const ageYears = (Date.now() - ts) / (365.25*24*60*60*1000);
-              p.age_over_18 = ageYears >= 18;
-            }
-          } catch {}
-        }
-      }
+      // Keep data-driven; no type-specific transformations
       const toTs = (v) => {
         if (!v) return undefined;
         if (typeof v === 'number') return v;
@@ -171,7 +151,7 @@ function seedFromTemplates() {
   loadJson('./data/cards-seed.json').then((seed) => {
     const now = Date.now();
     const toTs = (v) => { if (!v) return undefined; if (typeof v === 'number') return v; const t = Date.parse(v); return isNaN(t) ? undefined : t; };
-    const sel = Array.isArray(seed?.cards) ? seed.cards.filter(c => c && c.type === 'PID') : [];
+    const sel = Array.isArray(seed?.cards) ? seed.cards.filter(c => c && c.type) : [];
     const mapped = sel.map((c, i) => ({
       id: c.id || `${c.type}-${now + i}`,
       type: c.type,
@@ -182,7 +162,7 @@ function seedFromTemplates() {
       payload: c.payload || {},
     }));
     if (mapped.length === 0) {
-      console.warn('Geen PID seed gevonden in ./data/cards-seed.json');
+      console.warn('Geen voorbeeldkaarten gevonden in ./data/cards-seed.json');
       return;
     }
     state.cards = [...(state.cards || []), ...mapped];
@@ -207,7 +187,7 @@ function renderCards() {
     } else {
       empty.innerHTML = `
         <p class="font-inter text-sm text-gray-700 mb-3">De wallet is leeg.</p>
-        <p class="font-inter text-sm text-gray-700">Wil je de wallet vullen met PID?</p>
+        <p class="font-inter text-sm text-gray-700">Wil je de wallet voorzien van PID?</p>
         <div class="mt-4 flex items-center justify-center gap-3">
           <button id="seedWalletBtn" class="px-4 py-2 rounded-md text-sm font-inter bg-brandBlue text-white hover:bg-brandBlueHover">Ja, vul met PID</button>
           <button id="skipSeedBtn" class="px-4 py-2 rounded-md text-sm font-inter bg-white border border-gray-300 text-textDark">Nee</button>
@@ -411,10 +391,9 @@ function renderShareView() {
   let sel = typeof pendingShare.selectedIndex === 'number' ? pendingShare.selectedIndex : 0;
   if (sel < 0 || sel >= cards.length) sel = 0;
   pendingShare.selectedIndex = sel;
-  const labelMap = { PID: 'PID', INKOMEN: 'Inkomensverklaring', NVM_LIDMAATSCHAP: 'NVM Lidmaatschap' };
   const renderSelected = () => {
     const card = cards[pendingShare.selectedIndex];
-    const title = labelMap[card.type] || card.type;
+    const title = labelForType(card.type);
     info.textContent = `Kies de gegevens om te delen. Geselecteerd: ${title}`;
     details.innerHTML = '';
     details.appendChild(renderDetailsFromSchema(card.type, card.payload || {}));
@@ -434,7 +413,7 @@ function renderShareView() {
       input.addEventListener('change', () => { pendingShare.selectedIndex = i; renderSelected(); });
       const txt = document.createElement('div');
       const yr = (c.payload && (c.payload.nl_bld_bri_year || c.payload.year)) ? ` • ${c.payload.nl_bld_bri_year || c.payload.year}` : '';
-      txt.textContent = `${labelMap[c.type] || c.type}${yr}`;
+      txt.textContent = `${labelForType(c.type)}${yr}`;
       row.appendChild(input);
       row.appendChild(txt);
       wrap.appendChild(row);
@@ -631,10 +610,6 @@ function attachScanHandlers() {
           } catch {}
           const normalize = (s) => (s == null ? '' : String(s).toUpperCase().trim());
           let candidates = state.cards.filter(c => normalize(c.type) === reqType);
-          const hasIncome = (c) => c && c.payload && (('nl_bld_bri_year' in (c.payload||{})) || ('nl_bld_bri_income' in (c.payload||{})));
-          if ((reqType === 'INKOMEN' || reqType === '') && candidates.length === 0) {
-            candidates = state.cards.filter(hasIncome);
-          }
           if (reqType === '' && candidates.length === 0 && state.cards.length === 1) {
             candidates = [state.cards[0]];
           }
@@ -686,7 +661,7 @@ function attachScanHandlers() {
         }
       }
       if (!m) return; // nothing meaningful to add
-      const type = (m && m.type) ? String(m.type).toUpperCase() : 'INKOMEN';
+      const type = (m && m.type) ? String(m.type).toUpperCase() : (Object.keys(uiSchema || {})[0] || 'GENERIC');
       const issuer = (m && m.issuer) || 'Onbekend';
       const payload = (m && m.payload) || {};
       addCardFromSession(id, { type, issuer, payload });
@@ -722,16 +697,14 @@ function canonicalType(t) {
   let s = (t == null ? '' : String(t)).trim().toUpperCase();
   // Normalize separators (spaces, hyphens) to underscore for schema matching
   s = s.replace(/[\s-]+/g, '_');
-  if (s === 'INKOMENSVERKLARING' || s === 'INCOME' || s === 'INKOMENSCHECK') return 'INKOMEN';
-  if (s === 'PERSON_ID' || s === 'IDENTITEIT' || s === 'ID') return 'PID';
-  if (s === 'NVM LIDMAATSCHAP') return 'NVM_LIDMAATSCHAP';
   return s;
 }
 
 function labelForType(t) {
   const s = canonicalType(t);
-  if (s === 'INKOMEN') return 'Inkomensverklaring';
-  if (s === 'PID') return 'PID';
-  if (s === 'NVM_LIDMAATSCHAP') return 'NVM Lidmaatschap';
-  try { return (t == null ? '' : String(t)).replace(/_/g, ' ').trim() || s; } catch { return s; }
+  try {
+    const schema = uiSchema && (uiSchema[s] || uiSchema[String(s).replace(/_/g, ' ')]);
+    if (schema && schema.title) return String(schema.title);
+  } catch {}
+  try { return (t == null ? '' : String(t)).trim().toUpperCase() || s; } catch { return s; }
 }

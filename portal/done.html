@@ -21,14 +21,17 @@
   </div>
 
   <script>
-    (function(){
-      const m = { PID: 'PID', INKOMEN: 'Inkomensverklaring', NVM_LIDMAATSCHAP: 'NVM Lidmaatschap' };
+    (async function(){
       const type = (new URLSearchParams(location.search).get('type') || '').toUpperCase();
       const title = document.getElementById('doneTitle');
       const text = document.getElementById('doneText');
-      if (type && m[type]) {
-        title.textContent = `${m[type]} toegevoegd`;
-        text.textContent = `De ${m[type]} is succesvol toegevoegd aan de wallet.`;
+      async function loadJson(u){ try { const r = await fetch(u,{cache:'no-cache'}); if(!r.ok) throw new Error(); return await r.json(); } catch { return null; } }
+      const ui = await loadJson('./data/card-ui.json') || {};
+      const titleFor = (t) => { const k = String(t||'').toUpperCase(); const s = ui[k] || ui[String(k).replace(/_/g,' ')]; return (s && s.title) ? s.title : k; };
+      const human = titleFor(type);
+      if (type && human && title && text) {
+        title.textContent = `${human} toegevoegd`;
+        text.textContent = `De ${human} is succesvol toegevoegd aan de wallet.`;
       }
     })();
   </script>

@@ -34,12 +34,13 @@
     const params = new URLSearchParams(location.search);
     const typeParam = (params.get('type') || '').toUpperCase();
     const title = document.getElementById('shareTitle');
-    const names = { PID: 'PID', INKOMEN: 'Inkomensverklaring', NVM_LIDMAATSCHAP: 'NVM Lidmaatschap' };
-    if (typeParam && title) title.textContent = `${names[typeParam] || typeParam} gedeeld`;
     async function loadJson(url) {
       try { const res = await fetch(url, { cache: 'no-cache' }); if (!res.ok) throw new Error('http ' + res.status); return await res.json(); } catch { return null; }
     }
     const uiSchema = await loadJson('./data/card-ui.json') || {};
+    const titleFor = (t) => { const k = String(t||'').toUpperCase(); const s = uiSchema[k] || uiSchema[String(k).replace(/_/g,' ')]; return (s && s.title) ? s.title : k; };
+    if (typeParam && title) title.textContent = `${titleFor(typeParam)} gedeeld`;
+    
     function formatDate(ts) { if (!ts) return ''; try { const d = new Date(ts); const dd = String(d.getDate()).padStart(2, '0'); const mm = String(d.getMonth() + 1).padStart(2, '0'); const yyyy = d.getFullYear(); return `${dd}-${mm}-${yyyy}`; } catch { return ''; } }
     function formatCurrencyEUR(val) { const n = typeof val === 'number' ? val : parseFloat(String(val).replace(/[^0-9.,-]/g, '').replace(',', '.')); if (!isFinite(n)) return ''; try { return new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n); } catch { return `€ ${Math.round(n).toLocaleString('nl-NL')}`; } }
     function renderDetailsFromSchema(type, payload) {
@@ -102,7 +103,7 @@
         container.innerHTML = '<div class="font-inter text-base text-gray-800">Er is geen toestemming ontvangen. Het verzoek is verlopen.</div>';
       } else if ((shared && shared.outcome === 'not_found') || shared.error === 'not_found') {
         const req = (shared.requestedType || '').toUpperCase();
-        const human = names[req] || req || 'gegevens';
+        const human = titleFor(req) || req || 'gegevens';
         const msg = document.createElement('div');
         msg.className = 'font-inter text-base text-gray-800';
         msg.textContent = `De wallet heeft geen ${human} gevonden om te delen.`;
@@ -111,7 +112,7 @@
       } else {
         const head = document.createElement('div');
         head.className = 'mb-3';
-        const name = names[(shared.type || '').toUpperCase()] || (shared.type || 'Gegevens');
+        const name = titleFor((shared.type || '').toUpperCase()) || (shared.type || 'Gegevens');
         head.innerHTML = `<div class="font-headland text-xl">${name}</div><div class="font-inter text-sm text-gray-700">Ontvangen</div>`;
         container.innerHTML = '';
         container.appendChild(head);

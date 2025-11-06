@@ -1,5 +1,6 @@
 {
   "PID": {
+    "title": "PID",
     "order": [
       "given_name",
       "family_name",
@@ -22,6 +23,7 @@
     }
   },
   "INKOMEN": {
+    "title": "Inkomensverklaring",
     "order": ["nl_bld_bri_year", "nl_bld_bri_income"],
     "labels": {
       "nl_bld_bri_year": "Jaar",
@@ -32,6 +34,7 @@
     }
   },
   "NVM_LIDMAATSCHAP": {
+    "title": "NVM Lidmaatschap",
     "order": [
       "given_name",
       "family_name",
