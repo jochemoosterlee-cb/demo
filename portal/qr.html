@@ -51,7 +51,8 @@
     import { QrFlow } from '../js/qrflow.js';
     const params = new URLSearchParams(location.search);
     const type = (params.get('type') || 'INKOMEN').toUpperCase();
-    let issuer = type === 'PID' ? 'Gemeente Rotterdam' : 'Belastingdienst';
+    const defaultIssuerMap = { PID: 'Gemeente Rotterdam', INKOMEN: 'Belastingdienst', NVM_LIDMAATSCHAP: 'NVM' };
+    let issuer = defaultIssuerMap[type] || 'Onbekend';
     const title = document.getElementById('qrTitle');
     if (title) {
       const map = { PID: 'PID', INKOMEN: 'Inkomensverklaring', NVM_LIDMAATSCHAP: 'NVM Lidmaatschap' };
