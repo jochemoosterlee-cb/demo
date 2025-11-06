@@ -106,7 +106,8 @@
     const tpl = await getTemplate(type, params);
     const payload = tpl.payload || {};
     issuer = tpl.issuer || issuer;
-    const schema = uiSchema[type] || { order: Object.keys(payload || {}), labels: {}, format: {} };
+    let schema = uiSchema[type] || uiSchema[type.replace(/_/g, ' ')] || null;
+    if (!schema) { schema = { order: Object.keys(payload || {}), labels: {}, format: {} }; }
     const form = document.getElementById('payloadForm');
     function renderForm() {
       if (!form) return;
