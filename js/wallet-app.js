@@ -719,9 +719,12 @@ window.addEventListener('DOMContentLoaded', () => {
   } catch {}
 });
 function canonicalType(t) {
-  const s = (t == null ? '' : String(t)).trim().toUpperCase();
+  let s = (t == null ? '' : String(t)).trim().toUpperCase();
+  // Normalize separators (spaces, hyphens) to underscore for schema matching
+  s = s.replace(/[\s-]+/g, '_');
   if (s === 'INKOMENSVERKLARING' || s === 'INCOME' || s === 'INKOMENSCHECK') return 'INKOMEN';
   if (s === 'PERSON_ID' || s === 'IDENTITEIT' || s === 'ID') return 'PID';
+  if (s === 'NVM LIDMAATSCHAP') return 'NVM_LIDMAATSCHAP';
   return s;
 }
 
