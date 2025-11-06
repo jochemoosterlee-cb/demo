@@ -111,18 +111,11 @@
     function renderForm() {
       if (!form) return;
       form.innerHTML = '';
-      let order = Array.isArray(schema.order) && schema.order.length ? schema.order.slice() : Object.keys(payload || {});
-      if (!order || order.length === 0) {
-        if (type === 'NVM_LIDMAATSCHAP') {
-          order = ['given_name', 'family_name', 'membership_number'];
-        } else {
-          order = Object.keys(payload || {});
-        }
-      }
+      const order = Array.isArray(schema.order) && schema.order.length ? schema.order : Object.keys(payload || {});
       const labels = schema.labels || {};
       const format = schema.format || {};
       order.forEach((key) => {
-        const label = labels[key] || (key === 'membership_number' ? 'Lidmaatschapsnummer' : key);
+        const label = labels[key] || key;
         const fmt = format[key] || '';
         const wrap = document.createElement('div');
         wrap.className = 'flex flex-col gap-1';
@@ -194,11 +187,34 @@
       try { await f.setMeta(currentId, { type, issuer, payload }); } catch { }
     }
     let tmr; const pushMetaDebounced = () => { clearTimeout(tmr); tmr = setTimeout(pushMeta, 300); };
-    qrEl2?.addEventListener('qrflow:session', async (e) => {
+
+    async function applyOfferOnce(id) {
+      if (!id) return;
       await ensureFlow();
-      currentId = (qrEl2.getAttribute('data-session-id') || (e.detail && e.detail.id) || '').toString();
-      try { await f.setOffer(currentId, { type, issuer, payload, version: 1 }); } catch { }
+      currentId = id;
+      // Persist the offer and also root markers for robustness
+      try { await f.setOffer(id, { type, issuer, payload, version: 1 }); } catch {}
+      try { await f.setSessionInfo(id, { kind: 'offer', type }); } catch {}
+    }
+
+    // Primary: handle event
+    qrEl2?.addEventListener('qrflow:session', async (e) => {
+      const id = (qrEl2.getAttribute('data-session-id') || (e.detail && e.detail.id) || '').toString();
+      await applyOfferOnce(id);
     });
+
+    // Fallback: handle pre-existing or later-assigned dataset attribute
+    (async () => {
+      await new Promise(r => setTimeout(r, 50));
+      let sid = (qrEl2?.getAttribute('data-session-id') || '').toString();
+      if (sid) { await applyOfferOnce(sid); return; }
+      const obs = new MutationObserver(async () => {
+        sid = (qrEl2?.getAttribute('data-session-id') || '').toString();
+        if (sid) { try { obs.disconnect(); } catch {} await applyOfferOnce(sid); }
+      });
+      try { qrEl2 && obs.observe(qrEl2, { attributes: true, attributeFilter: ['data-session-id'] }); } catch {}
+      setTimeout(() => { try { obs.disconnect(); } catch {} }, 3000);
+    })();
   </script>
 
 </body>
