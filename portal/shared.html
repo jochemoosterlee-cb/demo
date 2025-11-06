@@ -34,7 +34,7 @@
     const params = new URLSearchParams(location.search);
     const typeParam = (params.get('type') || '').toUpperCase();
     const title = document.getElementById('shareTitle');
-    const names = { PID: 'PID', INKOMEN: 'Inkomensverklaring' };
+    const names = { PID: 'PID', INKOMEN: 'Inkomensverklaring', NVM_LIDMAATSCHAP: 'NVM Lidmaatschap' };
     if (typeParam && title) title.textContent = `${names[typeParam] || typeParam} gedeeld`;
     async function loadJson(url) {
       try { const res = await fetch(url, { cache: 'no-cache' }); if (!res.ok) throw new Error('http ' + res.status); return await res.json(); } catch { return null; }
@@ -43,7 +43,7 @@
     function formatDate(ts) { if (!ts) return ''; try { const d = new Date(ts); const dd = String(d.getDate()).padStart(2, '0'); const mm = String(d.getMonth() + 1).padStart(2, '0'); const yyyy = d.getFullYear(); return `${dd}-${mm}-${yyyy}`; } catch { return ''; } }
     function formatCurrencyEUR(val) { const n = typeof val === 'number' ? val : parseFloat(String(val).replace(/[^0-9.,-]/g, '').replace(',', '.')); if (!isFinite(n)) return ''; try { return new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n); } catch { return `€ ${Math.round(n).toLocaleString('nl-NL')}`; } }
     function renderDetailsFromSchema(type, payload) {
-      const schema = uiSchema && uiSchema[type];
+      const schema = (uiSchema && (uiSchema[type] || uiSchema[String(type).replace(/_/g, ' ')])) || null;
       const frag = document.createElement('div');
       frag.className = 'grid grid-cols-1 gap-1 font-inter text-sm';
       if (!schema) {

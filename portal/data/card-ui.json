@@ -31,7 +31,7 @@
       "nl_bld_bri_income": "eur"
     }
   },
-  "NVM LIDMAATSCHAP": {
+  "NVM_LIDMAATSCHAP": {
     "order": [
       "given_name",
       "family_name",
