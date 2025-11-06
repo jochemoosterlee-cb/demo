@@ -33,13 +33,30 @@
     import { QrFlow } from '../js/qrflow.js';
     const params = new URLSearchParams(location.search);
     const typeParam = (params.get('type') || '').toUpperCase();
+    const scenarioId = (params.get('scenario') || '').toUpperCase();
     const title = document.getElementById('shareTitle');
     async function loadJson(url) {
       try { const res = await fetch(url, { cache: 'no-cache' }); if (!res.ok) throw new Error('http ' + res.status); return await res.json(); } catch { return null; }
     }
     const uiSchema = await loadJson('./data/card-ui.json') || {};
+    const scenarios = await loadJson('./data/use-scenarios.json') || {};
     const titleFor = (t) => { const k = String(t||'').toUpperCase(); const s = uiSchema[k] || uiSchema[String(k).replace(/_/g,' ')]; return (s && s.title) ? s.title : k; };
-    if (typeParam && title) title.textContent = `${titleFor(typeParam)} gedeeld`;
+    const scenario = scenarios[scenarioId] || null;
+    const baseHuman = titleFor(typeParam) || 'Gegevens';
+    // While waiting: show scenario.title if provided, else generic
+    if (title) title.textContent = scenario && scenario.title ? String(scenario.title) : `${baseHuman} gedeeld`;
+    function getByPath(obj, path) {
+      try {
+        if (!path) return '';
+        const parts = String(path).split('.').map(s => s.trim()).filter(Boolean);
+        let cur = obj;
+        for (const p of parts) { if (cur == null) return ''; cur = cur[p]; }
+        return cur == null ? '' : String(cur);
+      } catch { return ''; }
+    }
+    function renderTemplate(tpl, ctx) {
+      try { return String(tpl).replace(/\{\{\s*([^}]+)\s*\}\}/g, function(_m, p){ return getByPath(ctx, p); }); } catch { return String(tpl || ''); }
+    }
     
     function formatDate(ts) { if (!ts) return ''; try { const d = new Date(ts); const dd = String(d.getDate()).padStart(2, '0'); const mm = String(d.getMonth() + 1).padStart(2, '0'); const yyyy = d.getFullYear(); return `${dd}-${mm}-${yyyy}`; } catch { return ''; } }
     function formatCurrencyEUR(val) { const n = typeof val === 'number' ? val : parseFloat(String(val).replace(/[^0-9.,-]/g, '').replace(',', '.')); if (!isFinite(n)) return ''; try { return new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n); } catch { return `€ ${Math.round(n).toLocaleString('nl-NL')}`; } }
@@ -112,11 +129,56 @@
       } else {
         const head = document.createElement('div');
         head.className = 'mb-3';
-        const name = titleFor((shared.type || '').toUpperCase()) || (shared.type || 'Gegevens');
-        head.innerHTML = `<div class="font-headland text-xl">${name}</div><div class="font-inter text-sm text-gray-700">Ontvangen</div>`;
+        const ctx = { payload: shared.payload || {}, shared: shared, scenario: scenario };
+        const name = (scenario && (scenario.resultTitleTemplate || scenario.resultTitle))
+          ? (scenario.resultTitleTemplate ? renderTemplate(scenario.resultTitleTemplate, ctx) : scenario.resultTitle)
+          : (titleFor((shared.type || '').toUpperCase()) || (shared.type || 'Gegevens'));
+        const sub = (scenario && (scenario.resultSubtitleTemplate || scenario.resultSubtitle))
+          ? (scenario.resultSubtitleTemplate ? renderTemplate(scenario.resultSubtitleTemplate, ctx) : scenario.resultSubtitle)
+          : 'Ontvangen';
+        const showInnerTitle = !(scenario && scenario.resultShowTitle === false);
+        const showInnerSubtitle = !(scenario && scenario.resultShowSubtitle === false);
+        head.innerHTML = `<div class="font-headland text-xl">${name}</div><div class="font-inter text-sm text-gray-700">${sub}</div>`;
         container.innerHTML = '';
         container.appendChild(head);
-        container.appendChild(renderDetailsFromSchema((shared.type || '').toUpperCase(), shared.payload || {}));
+        try { const tEl = document.getElementById('shareTitle'); if (tEl) tEl.textContent = name; } catch {}
+        // Apply scenario branding: optional logo, color and structured header
+        if (scenario && (scenario.logo || scenario.color || scenario.resultTitleTemplate || scenario.resultSubtitleTemplate)) {
+          try {
+            head.innerHTML = '';
+            if (scenario.logo) {
+              const img = document.createElement('img');
+              img.src = scenario.logo; img.alt = '';
+              img.className = 'object-contain mb-1';
+              img.style.maxWidth = '128px';
+              img.style.maxHeight = '128px';
+              head.appendChild(img);
+            }
+            if (showInnerTitle) {
+              const titleEl = document.createElement('div');
+              titleEl.className = 'font-headland text-xl';
+              titleEl.textContent = name;
+              if (scenario.color) { titleEl.style.color = scenario.color; }
+              head.appendChild(titleEl);
+            }
+            if (showInnerSubtitle) {
+              const subEl = document.createElement('div');
+              subEl.className = 'font-inter text-sm text-gray-700';
+              subEl.textContent = sub;
+              head.appendChild(subEl);
+            }
+          } catch {}
+        }
+        if (scenario && scenario.resultTemplate) {
+          const custom = document.createElement('div');
+          custom.className = 'font-inter text-base text-gray-800 mb-3';
+          custom.textContent = renderTemplate(scenario.resultTemplate, ctx);
+          container.appendChild(custom);
+        }
+        const showDetails = !(scenario && scenario.showDetails === false);
+        if (showDetails) {
+          container.appendChild(renderDetailsFromSchema((shared.type || '').toUpperCase(), shared.payload || {}));
+        }
       }
     }
   </script>

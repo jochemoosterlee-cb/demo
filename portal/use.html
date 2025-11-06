@@ -28,6 +28,22 @@
     <a href="index.html" class="font-inter text-sm text-brandBlue underline">Terug</a>
   </div>
 
+  <script>
+    // Ensure presenter has a nextUrl with current query params before qrflow-auto initializes
+    (function(){
+      try {
+        const qrEl = document.getElementById('qrcode');
+        if (!qrEl) return;
+        const u = new URL('shared.html', location.href);
+        const p = new URLSearchParams(location.search);
+        const t = (p.get('type') || '').toUpperCase();
+        const sc = (p.get('scenario') || '').toUpperCase();
+        if (t) u.searchParams.set('type', t);
+        if (sc) u.searchParams.set('scenario', sc);
+        qrEl.setAttribute('data-next-url', u.pathname + u.search);
+      } catch {}
+    })();
+  </script>
   <script type="module" src="../js/qrflow-auto.js"></script>
   <script>
     const qrEl = document.getElementById('qrcode');
@@ -46,17 +62,36 @@
     const params = new URLSearchParams(location.search);
     async function loadJson(u){ try { const r = await fetch(u,{cache:'no-cache'}); if(!r.ok) throw new Error(); return await r.json(); } catch { return null; } }
     const ui = await loadJson('./data/card-ui.json') || {};
-    const rawType = params.get('type') || Object.keys(ui || {})[0] || '';
+    const scenarios = await loadJson('./data/use-scenarios.json') || {};
+    const scenarioId = (params.get('scenario') || '').toUpperCase();
+    const scenario = scenarios[scenarioId] || null;
+    const rawType = (scenario && scenario.request && scenario.request.type) || params.get('type') || Object.keys(ui || {})[0] || '';
     const type = String(rawType).toUpperCase();
     const title = document.getElementById('qrTitle');
     const titleFor = (t) => { const k = String(t||'').toUpperCase(); const s = ui[k] || ui[String(k).replace(/_/g,' ')]; return (s && s.title) ? s.title : k; };
-    if (title) title.textContent = `Scan de QR-code (gebruik ${titleFor(type)})`;
+    if (title) title.textContent = scenario && scenario.title ? String(scenario.title) : `Scan de QR-code (gebruik ${titleFor(type)})`;
     const subTop = document.getElementById('qrSubtitleTop');
-    if (subTop) subTop.textContent = `Vraag aan de wallet om de ${titleFor(type)} te delen.`;
+    if (subTop) subTop.textContent = scenario && scenario.subtitle ? String(scenario.subtitle) : `Vraag aan de wallet om de ${titleFor(type)} te delen.`;
+    // Apply scenario branding (logo only; keep default colors like other flows)
+    if (scenario) {
+      try {
+        if (scenario.logo && title && title.parentElement) {
+          const img = document.createElement('img');
+          img.src = scenario.logo; img.alt = '';
+          img.className = 'object-contain';
+          img.style.maxWidth = '128px';
+          img.style.maxHeight = '128px';
+          title.parentElement.insertBefore(img, title);
+        }
+      } catch {}
+    }
 
     const qrEl2 = document.getElementById('qrcode');
     if (qrEl2) {
-      qrEl2.dataset.nextUrl = `shared.html?type=${encodeURIComponent(type)}`;
+      const next = new URL('shared.html', location.href);
+      next.searchParams.set('type', type);
+      if (scenarioId) next.searchParams.set('scenario', scenarioId);
+      qrEl2.dataset.nextUrl = next.pathname + next.search;
     }
 
     let f;
@@ -66,10 +101,18 @@
       if (!id) return;
       await ensureFlow();
       // Update nextUrl to include id as query param for robust navigation
-      try { if (qrEl2) qrEl2.dataset.nextUrl = `shared.html?type=${encodeURIComponent(type)}&id=${encodeURIComponent(id)}`; } catch {}
+      try {
+        if (qrEl2) {
+          const next = new URL('shared.html', location.href);
+          next.searchParams.set('type', type);
+          next.searchParams.set('id', id);
+          if (scenarioId) next.searchParams.set('scenario', scenarioId);
+          qrEl2.dataset.nextUrl = next.pathname + next.search;
+        }
+      } catch {}
       // Persist both request payload and root markers including type for robust client detection
-      try { await f.setRequest(id, { intent: 'use_card', type, version: 1 }); } catch {}
-      try { await f.setSessionInfo(id, { intent: 'use_card', kind: 'request', type }); } catch {}
+      try { await f.setRequest(id, { intent: 'use_card', type, scenario: scenarioId || undefined, version: 1 }); } catch {}
+      try { await f.setSessionInfo(id, { intent: 'use_card', kind: 'request', type, scenario: scenarioId || undefined }); } catch {}
       try { sessionStorage.setItem('qrId', id); } catch {}
     }
     qrEl2?.addEventListener('qrflow:session', async (e) => {
