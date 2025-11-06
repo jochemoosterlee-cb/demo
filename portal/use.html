@@ -46,7 +46,7 @@
     const params = new URLSearchParams(location.search);
     const type = (params.get('type') || 'INKOMEN').toUpperCase();
     const title = document.getElementById('qrTitle');
-    const map = { PID: 'PID', INKOMEN: 'Inkomensverklaring' };
+    const map = { PID: 'PID', INKOMEN: 'Inkomensverklaring', NVM_LIDMAATSCHAP: 'NVM Lidmaatschap' };
     if (title) title.textContent = `Scan de QR-code (gebruik ${map[type] || type})`;
     const subTop = document.getElementById('qrSubtitleTop');
     if (subTop) subTop.textContent = `Vraag aan de wallet om de ${map[type] || type} te delen.`;

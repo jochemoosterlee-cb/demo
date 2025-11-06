@@ -228,7 +228,7 @@ function renderCards() {
     const header = document.createElement('div');
     header.className = 'flex items-center justify-between gap-4';
     const title = document.createElement('div');
-    title.innerHTML = `<div class=\"font-headland text-lg\">${c.type}</div><div class=\"font-inter text-sm text-gray-700\">${c.issuer}</div>`;
+    title.innerHTML = `<div class=\"font-headland text-lg\">${labelForType(c.type)}</div><div class=\"font-inter text-sm text-gray-700\">${c.issuer}</div>`;
     const leftWrap = document.createElement('div');
     leftWrap.className = 'flex items-center gap-3';
     leftWrap.appendChild(title);
@@ -411,7 +411,7 @@ function renderShareView() {
   let sel = typeof pendingShare.selectedIndex === 'number' ? pendingShare.selectedIndex : 0;
   if (sel < 0 || sel >= cards.length) sel = 0;
   pendingShare.selectedIndex = sel;
-  const labelMap = { PID: 'PID', INKOMEN: 'Inkomensverklaring' };
+  const labelMap = { PID: 'PID', INKOMEN: 'Inkomensverklaring', NVM_LIDMAATSCHAP: 'NVM Lidmaatschap' };
   const renderSelected = () => {
     const card = cards[pendingShare.selectedIndex];
     const title = labelMap[card.type] || card.type;
@@ -711,4 +711,12 @@ function canonicalType(t) {
   if (s === 'INKOMENSVERKLARING' || s === 'INCOME' || s === 'INKOMENSCHECK') return 'INKOMEN';
   if (s === 'PERSON_ID' || s === 'IDENTITEIT' || s === 'ID') return 'PID';
   return s;
+}
+
+function labelForType(t) {
+  const s = canonicalType(t);
+  if (s === 'INKOMEN') return 'Inkomensverklaring';
+  if (s === 'PID') return 'PID';
+  if (s === 'NVM_LIDMAATSCHAP') return 'NVM Lidmaatschap';
+  try { return (t == null ? '' : String(t)).replace(/_/g, ' ').trim() || s; } catch { return s; }
 }
