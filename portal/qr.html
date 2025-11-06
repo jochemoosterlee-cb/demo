@@ -105,11 +105,18 @@
     function renderForm() {
       if (!form) return;
       form.innerHTML = '';
-      const order = Array.isArray(schema.order) && schema.order.length ? schema.order : Object.keys(payload || {});
+      let order = Array.isArray(schema.order) && schema.order.length ? schema.order.slice() : Object.keys(payload || {});
+      if (!order || order.length === 0) {
+        if (type === 'NVM_LIDMAATSCHAP') {
+          order = ['given_name', 'family_name', 'membership_number'];
+        } else {
+          order = Object.keys(payload || {});
+        }
+      }
       const labels = schema.labels || {};
       const format = schema.format || {};
       order.forEach((key) => {
-        const label = labels[key] || key;
+        const label = labels[key] || (key === 'membership_number' ? 'Lidmaatschapsnummer' : key);
         const fmt = format[key] || '';
         const wrap = document.createElement('div');
         wrap.className = 'flex flex-col gap-1';
