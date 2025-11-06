@@ -670,9 +670,21 @@ function attachScanHandlers() {
       } catch {}
 
       // Otherwise treat as add-card flow. Prefer the latest offer from DB.
-      let offer = null;
-      try { offer = await f.getOffer(id); } catch {}
-      let m = offer || pendingMeta.get(id) || null;
+      // Be robust: retry briefly to avoid race conditions on first scan.
+      let m = null;
+      const tryFetchMeta = async () => {
+        let off = null, req = null;
+        try { off = await f.getOffer(id); } catch {}
+        if (!off) { try { req = await f.getRequest(id); } catch {} }
+        return off || req || pendingMeta.get(id) || null;
+      };
+      m = await tryFetchMeta();
+      if (!m) {
+        for (let i = 0; i < 12 && !m; i++) { // ~12*150ms = 1.8s max
+          await new Promise(r => setTimeout(r, 150));
+          try { m = await tryFetchMeta(); } catch {}
+        }
+      }
       if (!m) return; // nothing meaningful to add
       const type = (m && m.type) ? String(m.type).toUpperCase() : 'INKOMEN';
       const issuer = (m && m.issuer) || 'Onbekend';
