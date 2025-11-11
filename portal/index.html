@@ -31,9 +31,9 @@
   <script>
     (async function(){
       async function loadJson(url){ try { const r = await fetch(url, { cache: 'no-cache' }); if(!r.ok) throw new Error('http '+r.status); return await r.json(); } catch { return null; } }
-      const tpl = await loadJson('./data/card-templates.json') || {};
-      const ui = await loadJson('./data/card-ui.json') || {};
-      const scenarios = await loadJson('./data/use-scenarios.json') || {};
+      const tpl = await loadJson('../data/card-templates.json') || {};
+      const ui = await loadJson('../data/card-ui.json') || {};
+      const scenarios = await loadJson('../data/use-scenarios.json') || {};
       const schemaFor = (t) => {
         const k = String(t||'').toUpperCase();
         const variants = [k, k.replace(/_/g,' '), k.replace(/[\s-]+/g,'_')];
@@ -60,36 +60,33 @@
       if (useLinks) {
         useLinks.innerHTML='';
         const scKeys = Object.keys(scenarios || {});
-        scKeys.sort().forEach((id) => {
-          const s = scenarios[id] || {};
-          const a = document.createElement('a');
-          a.href = `use.html?scenario=${encodeURIComponent(id)}`;
-          // Match generic card style (hover, border, colors)
-          a.className = 'bg-white border text-center hyphens-none break-words border-gray-300 text-textDark rounded-md px-6 py-3 text-base font-inter inline-flex items-center justify-center gap-2 transition-colors duration-200 hover:bg-brandBlue hover:text-white';
-          const label = s && s.title ? String(s.title) : String(id).toUpperCase();
-          if (s.logo) {
-            const img = document.createElement('img');
-            img.src = s.logo; img.alt = '';
-            img.className = 'object-contain flex-shrink-0';
-            img.style.width = '24px';
-            img.style.height = '24px';
-            a.appendChild(img);
-          }
-          const span = document.createElement('span');
-          span.textContent = label;
-          a.appendChild(span);
-          useLinks.appendChild(a);
-        });
-        // Divider by types when no scenarios or to add more options
-        const useTypes = Object.keys(ui || {});
-        useTypes.sort().forEach((type) => {
-          const a = document.createElement('a');
-          const k = String(type).toUpperCase();
-          a.href = `use.html?type=${encodeURIComponent(k)}`;
-          a.className = 'bg-white border text-center hyphens-none break-words border-gray-300 text-textDark rounded-md px-6 py-3 text-base font-inter inline-flex items-center justify-center gap-2 transition-colors duration-200 hover:bg-brandBlue hover:text-white';
-          a.textContent = titleFor(k);
-          useLinks.appendChild(a);
-        });
+        if (scKeys.length === 0) {
+          const msg = document.createElement('p');
+          msg.className = 'col-span-full font-inter text-sm text-gray-700 text-center';
+          msg.textContent = 'Geen gebruiksscenario\'s geconfigureerd.';
+          useLinks.appendChild(msg);
+        } else {
+          scKeys.sort().forEach((id) => {
+            const s = scenarios[id] || {};
+            const a = document.createElement('a');
+            a.href = `use.html?scenario=${encodeURIComponent(id)}`;
+            // Match generic card style (hover, border, colors)
+            a.className = 'bg-white border text-center hyphens-none break-words border-gray-300 text-textDark rounded-md px-6 py-3 text-base font-inter inline-flex items-center justify-center gap-2 transition-colors duration-200 hover:bg-brandBlue hover:text-white';
+            const label = s && s.title ? String(s.title) : String(id).toUpperCase();
+            if (s.logo) {
+              const img = document.createElement('img');
+              img.src = s.logo; img.alt = '';
+              img.className = 'object-contain flex-shrink-0';
+              img.style.width = '24px';
+              img.style.height = '24px';
+              a.appendChild(img);
+            }
+            const span = document.createElement('span');
+            span.textContent = label;
+            a.appendChild(span);
+            useLinks.appendChild(a);
+          });
+        }
       }
     })();
   </script>
