@@ -9,14 +9,14 @@
   <link href="https://fonts.googleapis.com/css2?family=Headland+One&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../css/output.css">
   <script src="../js/qrcode.min.js"></script>
-  <title>Portal | Gebruik gegevens</title>
+  <title>Portal | Gegevens delen</title>
 </head>
 <body class="overflow-x-hidden bg-brandBg text-textDark flex items-center justify-center min-h-screen px-8">
   <div class="max-w-4xl w-full bg-cardBg rounded-2xl p-12 flex flex-col items-center gap-10">
     <h1 id="qrTitle" class="font-headland text-3xl font-medium">Scan de QR-code</h1>
     <p id="qrSubtitleTop" class="font-inter text-center max-w-xl">Laat de wallet deze code scannen om de gevraagde gegevens te delen.</p>
     <div id="qrcode" class="p-4 bg-white flex justify-center items-center rounded-lg"
-         data-qrflow="presenter" data-wait="scanned" data-next-url="shared.html" data-size="220" data-color-dark="#333333" data-color-light="#FFFFFF" data-intent="use_card" data-kind="request"></div>
+         data-qrflow="presenter" data-wait="scanned" data-next-url="share-result.html" data-size="220" data-color-dark="#333333" data-color-light="#FFFFFF" data-intent="use_card" data-kind="request"></div>
     <div class="w-full max-w-md bg-white/60 rounded-lg p-4">
       <label class="block font-inter text-sm mb-2" for="qrCodeText">Sessiecode (voor handmatig plakken in de wallet):</label>
       <div class="flex gap-2">
@@ -24,7 +24,22 @@
         <button id="copyQrCode" class="bg-brandBlue hover:bg-brandBlueHover text-white rounded-md px-3 py-2 text-sm font-inter">Kopieer</button>
       </div>
       <p class="font-inter text-xs text-gray-700 mt-2">Plak de code in de wallet als alternatief voor scannen.</p>
-    </div>
+    </div>  <script>
+    (function(){
+      const qrEl = document.getElementById('qrcode');
+      const input = document.getElementById('qrCodeText');
+      const copyBtn = document.getElementById('copyQrCode');
+      if (qrEl) {
+        qrEl.addEventListener('qrflow:session', (e) => {
+          const id = (qrEl.getAttribute('data-session-id') || (e.detail && e.detail.id) || '').toString();
+          if (input) input.value = id;
+        });
+      }
+      copyBtn?.addEventListener('click', async () => {
+        try { await navigator.clipboard.writeText(input?.value || ''); copyBtn.textContent = 'Gekopieerd'; setTimeout(()=>copyBtn.textContent='Kopieer', 1200); } catch {}
+      });
+    })();
+  </script>
     <a href="index.html" class="font-inter text-sm text-brandBlue underline">Terug</a>
   </div>
 
@@ -34,7 +49,7 @@
       try {
         const qrEl = document.getElementById('qrcode');
         if (!qrEl) return;
-        const u = new URL('shared.html', location.href);
+        const u = new URL('share-result.html', location.href);
         const p = new URLSearchParams(location.search);
         const t = (p.get('type') || '').toUpperCase();
         const sc = (p.get('scenario') || '').toUpperCase();
@@ -45,34 +60,23 @@
     })();
   </script>
   <script type="module" src="../js/qrflow-auto.js"></script>
-  <script>
-    const qrEl = document.getElementById('qrcode');
-    const input = document.getElementById('qrCodeText');
-    const copyBtn = document.getElementById('copyQrCode');
-    qrEl?.addEventListener('qrflow:session', (e) => {
-      const id = (qrEl.getAttribute('data-session-id') || (e.detail && e.detail.id) || '').toString();
-      if (input) input.value = id;
-    });
-    copyBtn?.addEventListener('click', async () => {
-      try { await navigator.clipboard.writeText(input.value); copyBtn.textContent = 'Gekopieerd'; setTimeout(()=>copyBtn.textContent='Kopieer', 1200); } catch {}
-    });
-  </script>
   <script type="module">
     import { QrFlow } from '../js/qrflow.js';
     const params = new URLSearchParams(location.search);
     async function loadJson(u){ try { const r = await fetch(u,{cache:'no-cache'}); if(!r.ok) throw new Error(); return await r.json(); } catch { return null; } }
-    const ui = await loadJson('./data/card-ui.json') || {};
-    const scenarios = await loadJson('./data/use-scenarios.json') || {};
+    const types = await loadJson('../data/card-types.json') || {};
+    const scenarios = await loadJson('../data/use-scenarios.json') || {};
+    const content = await loadJson('../data/card-content.json') || {};
     const scenarioId = (params.get('scenario') || '').toUpperCase();
     const scenario = scenarios[scenarioId] || null;
-    const rawType = (scenario && scenario.request && scenario.request.type) || params.get('type') || Object.keys(ui || {})[0] || '';
+    const typeFromContentRef = (ref) => { const it = content && content[ref]; return it && it.type ? String(it.type) : ''; };
+    const rawType = (scenario && ((scenario.request && (scenario.request.typeRef || scenario.request.type)) || (scenario.contentRef && typeFromContentRef(scenario.contentRef)))) || params.get('type') || Object.keys(types || {})[0] || '';
     const type = String(rawType).toUpperCase();
     const title = document.getElementById('qrTitle');
-    const titleFor = (t) => { const k = String(t||'').toUpperCase(); const s = ui[k] || ui[String(k).replace(/_/g,' ')]; return (s && s.title) ? s.title : k; };
+    const titleFor = (t) => { const k = String(t||'').toUpperCase(); const s = types[k] || types[String(k).replace(/_/g,' ')]; return (s && s.title) ? s.title : k; };
     if (title) title.textContent = scenario && scenario.title ? String(scenario.title) : `Scan de QR-code (gebruik ${titleFor(type)})`;
     const subTop = document.getElementById('qrSubtitleTop');
     if (subTop) subTop.textContent = scenario && scenario.subtitle ? String(scenario.subtitle) : `Vraag aan de wallet om de ${titleFor(type)} te delen.`;
-    // Apply scenario branding (logo only; keep default colors like other flows)
     if (scenario) {
       try {
         if (scenario.logo && title && title.parentElement) {
@@ -88,7 +92,7 @@
 
     const qrEl2 = document.getElementById('qrcode');
     if (qrEl2) {
-      const next = new URL('shared.html', location.href);
+      const next = new URL('share-result.html', location.href);
       next.searchParams.set('type', type);
       if (scenarioId) next.searchParams.set('scenario', scenarioId);
       qrEl2.dataset.nextUrl = next.pathname + next.search;
@@ -100,17 +104,15 @@
     async function applyRequestOnce(id){
       if (!id) return;
       await ensureFlow();
-      // Update nextUrl to include id as query param for robust navigation
       try {
         if (qrEl2) {
-          const next = new URL('shared.html', location.href);
+          const next = new URL('share-result.html', location.href);
           next.searchParams.set('type', type);
           next.searchParams.set('id', id);
           if (scenarioId) next.searchParams.set('scenario', scenarioId);
           qrEl2.dataset.nextUrl = next.pathname + next.search;
         }
       } catch {}
-      // Persist both request payload and root markers including type for robust client detection
       try { await f.setRequest(id, { intent: 'use_card', type, scenario: scenarioId || undefined, version: 1 }); } catch {}
       try { await f.setSessionInfo(id, { intent: 'use_card', kind: 'request', type, scenario: scenarioId || undefined }); } catch {}
       try { sessionStorage.setItem('qrId', id); } catch {}
@@ -119,9 +121,7 @@
       currentId = (qrEl2.getAttribute('data-session-id') || (e.detail && e.detail.id) || '').toString();
       await applyRequestOnce(currentId);
     });
-    // Fallback if event was missed: observe dataset change or use existing attribute
     (async () => {
-      // Slight delay to allow presenter init
       await new Promise(r=>setTimeout(r, 50));
       let sid = (qrEl2?.getAttribute('data-session-id') || '').toString();
       if (sid) { currentId = sid; await applyRequestOnce(currentId); return; }
@@ -136,3 +136,4 @@
 </body>
 <!-- end -->
 </html>
+

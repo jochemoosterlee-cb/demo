@@ -24,7 +24,10 @@
   },
   "INKOMEN": {
     "title": "Inkomensverklaring",
-    "order": ["nl_bld_bri_year", "nl_bld_bri_income"],
+    "order": [
+      "nl_bld_bri_year",
+      "nl_bld_bri_income"
+    ],
     "labels": {
       "nl_bld_bri_year": "Jaar",
       "nl_bld_bri_income": "Inkomen"

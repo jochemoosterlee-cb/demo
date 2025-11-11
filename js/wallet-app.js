@@ -148,21 +148,45 @@ function clearWallet() {
 }
 
 function seedFromTemplates() {
-  loadJson('./data/cards-seed.json').then((seed) => {
+  loadJson('../data/cards-seed.json').then(async (seed) => {
     const now = Date.now();
     const toTs = (v) => { if (!v) return undefined; if (typeof v === 'number') return v; const t = Date.parse(v); return isNaN(t) ? undefined : t; };
-    const sel = Array.isArray(seed?.cards) ? seed.cards.filter(c => c && c.type) : [];
-    const mapped = sel.map((c, i) => ({
-      id: c.id || `${c.type}-${now + i}`,
-      type: c.type,
-      issuer: c.issuer || '',
-      issuedAt: toTs(c.issuedAt),
-      expiresAt: toTs(c.expiresAt),
-      expanded: false,
-      payload: c.payload || {},
-    }));
+    const list = Array.isArray(seed && seed.cards) ? seed.cards : [];
+    let content = null;
+    const mapped = [];
+    for (let i = 0; i < list.length; i++) {
+      const c = list[i] || {};
+      if ((c.typeRef || c.type) && c.contentRef) {
+        if (!content) { content = await loadJson('../data/card-content.json'); }
+        const item = content && content[String(c.contentRef)] || null;
+        const t = String(c.typeRef || c.type || (item && item.type) || '').toUpperCase().replace(/[\s-]+/g, '_');
+        if (item && t) {
+          mapped.push({
+            id: `${t}-${now + i}`,
+            type: t,
+            issuer: item.issuer || '',
+            issuedAt: toTs(item.issuedAt),
+            expiresAt: toTs(item.expiresAt),
+            expanded: false,
+            payload: item.payload || {},
+          });
+        }
+        continue;
+      }
+      if (c && c.type) {
+        mapped.push({
+          id: c.id || `${c.type}-${now + i}`,
+          type: c.type,
+          issuer: c.issuer || '',
+          issuedAt: toTs(c.issuedAt),
+          expiresAt: toTs(c.expiresAt),
+          expanded: false,
+          payload: c.payload || {},
+        });
+      }
+    }
     if (mapped.length === 0) {
-      console.warn('Geen voorbeeldkaarten gevonden in ./data/cards-seed.json');
+      console.warn('Geen voorbeeldkaarten gevonden in ../data/cards-seed.json');
       return;
     }
     state.cards = [...(state.cards || []), ...mapped];
@@ -671,7 +695,7 @@ function attachScanHandlers() {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-  loadJson('./data/card-ui.json').then((s) => { uiSchema = s || {}; renderCards(); });
+  loadJson('../data/card-types.json').then((s) => { uiSchema = s || {}; renderCards(); });
   migrateState();
   renderCards();
   attachScanHandlers();
@@ -708,3 +732,6 @@ function labelForType(t) {
   } catch {}
   try { return (t == null ? '' : String(t)).trim().toUpperCase() || s; } catch { return s; }
 }
+
+
+

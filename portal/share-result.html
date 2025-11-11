@@ -9,17 +9,7 @@
   <link rel="icon" type="image/x-icon" href="../favicon.ico">
   <link href="https://fonts.googleapis.com/css2?family=Headland+One&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="../css/output.css">
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: { inter: ['Inter', 'sans-serif'], headland: ['"Headland One"', 'serif'] },
-          colors: { brandBg: '#FAF5EB', textDark: '#222', cardBg: '#F7EFDD', brandBlue: '#163563', brandBlueHover: '#003d8c' }
-        }
-      }
-    };
-  </script>
-  <title>Portal | Gedeelde gegevens</title>
+  <title>Portal | Resultaat delen</title>
 </head>
 
 <body class="overflow-x-hidden bg-brandBg text-textDark flex items-center justify-center min-h-screen px-8">
@@ -38,8 +28,8 @@
     async function loadJson(url) {
       try { const res = await fetch(url, { cache: 'no-cache' }); if (!res.ok) throw new Error('http ' + res.status); return await res.json(); } catch { return null; }
     }
-    const uiSchema = await loadJson('./data/card-ui.json') || {};
-    const scenarios = await loadJson('./data/use-scenarios.json') || {};
+    const uiSchema = await loadJson('../data/card-types.json') || {};
+    const scenarios = await loadJson('../data/use-scenarios.json') || {};
     const titleFor = (t) => { const k = String(t||'').toUpperCase(); const s = uiSchema[k] || uiSchema[String(k).replace(/_/g,' ')]; return (s && s.title) ? s.title : k; };
     const scenario = scenarios[scenarioId] || null;
     const baseHuman = titleFor(typeParam) || 'Gegevens';
@@ -128,22 +118,35 @@
         container.appendChild(msg);
       } else {
         const head = document.createElement('div');
-        head.className = 'mb-3';
+        head.className = 'mb-6 flex justify-center';
         const ctx = { payload: shared.payload || {}, shared: shared, scenario: scenario };
-        const name = (scenario && (scenario.resultTitleTemplate || scenario.resultTitle))
-          ? (scenario.resultTitleTemplate ? renderTemplate(scenario.resultTitleTemplate, ctx) : scenario.resultTitle)
-          : (titleFor((shared.type || '').toUpperCase()) || (shared.type || 'Gegevens'));
-        const sub = (scenario && (scenario.resultSubtitleTemplate || scenario.resultSubtitle))
+        // Prefer a specific resultName/resultNameTemplate voor de binnenkop
+        // Ontbreekt of leeg? Dan niets tonen (geen fallback)
+        const nameRaw = (scenario && (scenario.resultNameTemplate || scenario.resultName))
+          ? (scenario.resultNameTemplate ? renderTemplate(scenario.resultNameTemplate, ctx) : scenario.resultName)
+          : '';
+        const name = String(nameRaw || '').trim();
+        const subRaw = (scenario && (scenario.resultSubtitleTemplate || scenario.resultSubtitle))
           ? (scenario.resultSubtitleTemplate ? renderTemplate(scenario.resultSubtitleTemplate, ctx) : scenario.resultSubtitle)
-          : 'Ontvangen';
-        const showInnerTitle = !(scenario && scenario.resultShowTitle === false);
-        const showInnerSubtitle = !(scenario && scenario.resultShowSubtitle === false);
-        head.innerHTML = `<div class="font-headland text-xl">${name}</div><div class="font-inter text-sm text-gray-700">${sub}</div>`;
+          : '';
+        const sub = String(subRaw || '').trim();
+        const showInnerTitle = (!(scenario && scenario.resultShowTitle === false)) && (name.length > 0);
+        const showInnerSubtitle = (!(scenario && scenario.resultShowSubtitle === false)) && (sub.length > 0);
+        head.innerHTML = `${showInnerTitle ? `<div class="font-headland text-xl">${name}</div>` : ''}${showInnerSubtitle ? `<div class=\"font-inter text-sm text-gray-700\">${sub}</div>` : ''}`;
         container.innerHTML = '';
         container.appendChild(head);
-        try { const tEl = document.getElementById('shareTitle'); if (tEl) tEl.textContent = name; } catch {}
-        // Apply scenario branding: optional logo, color and structured header
-        if (scenario && (scenario.logo || scenario.color || scenario.resultTitleTemplate || scenario.resultSubtitleTemplate)) {
+        // Set outer title from resultTitle (if provided), inner title uses resultName
+        try {
+          const tEl = document.getElementById('shareTitle');
+          if (tEl) {
+            const outer = (scenario && (scenario.resultTitleTemplate || scenario.resultTitle))
+              ? (scenario.resultTitleTemplate ? renderTemplate(scenario.resultTitleTemplate, ctx) : scenario.resultTitle)
+              : '';
+            if (String(outer || '').trim()) { tEl.textContent = outer; }
+          }
+        } catch {}
+        // Apply scenario branding: optional logo and structured header
+        if (scenario) {
           try {
             head.innerHTML = '';
             if (scenario.logo) {
@@ -158,7 +161,6 @@
               const titleEl = document.createElement('div');
               titleEl.className = 'font-headland text-xl';
               titleEl.textContent = name;
-              if (scenario.color) { titleEl.style.color = scenario.color; }
               head.appendChild(titleEl);
             }
             if (showInnerSubtitle) {
